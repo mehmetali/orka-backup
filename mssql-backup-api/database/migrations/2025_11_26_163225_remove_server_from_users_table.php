@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('server')->nullable();
+            if (Schema::hasColumn('users', 'server')) {
+                $table->dropColumn('server');
+            }
         });
     }
 
@@ -22,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('server');
+            $table->string('server')->nullable();
         });
     }
 };

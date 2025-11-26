@@ -28,7 +28,6 @@ pub struct ApiConfig {
 #[derive(Deserialize, Debug)]
 pub struct BackupConfig {
     pub temp_path: String,
-    pub server_name: String,
 }
 
 pub fn load_config(path: &str) -> Result<Config> {

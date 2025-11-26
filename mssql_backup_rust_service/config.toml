@@ -7,8 +7,7 @@ database = "your_database_to_backup"
 
 [api]
 url = "http://127.0.0.1:8000/api/backups/upload"
-token = "your_api_token" # Create a token in Laravel Sanctum
+token = "your_server_token" # This is the server token from the API
 
 [backup]
 temp_path = "./temp_backups"
-server_name = "your_server_name"

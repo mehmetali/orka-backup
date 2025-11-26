@@ -46,6 +46,7 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
 
         let response_result = client.post(&config.api.url)
             .bearer_auth(&config.api.token)
+            .header("Accept", "application/json")
             .multipart(form)
             .send()
             .await;

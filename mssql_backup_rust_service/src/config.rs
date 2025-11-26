@@ -11,10 +11,10 @@ pub struct Config {
 
 #[derive(Deserialize, Debug)]
 pub struct MssqlConfig {
-    pub host: String,
-    pub port: u16,
-    pub user: String,
-    pub pass: String,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub user: Option<String>,
+    pub pass: Option<String>,
     pub database: String,
 }
 

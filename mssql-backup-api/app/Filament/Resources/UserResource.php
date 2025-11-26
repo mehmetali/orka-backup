@@ -36,7 +36,6 @@ class UserResource extends Resource
                     ->relationship('group', 'name')
                     ->searchable()
                     ->preload(),
-                Forms\Components\TextInput::make('server'),
             ]);
     }
 
@@ -61,8 +60,6 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('group.name')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('server')
-                    ->searchable(),
             ])
             ->filters([
                 //

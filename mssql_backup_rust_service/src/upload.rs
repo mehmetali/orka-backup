@@ -36,7 +36,7 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
             .mime_str("application/octet-stream")?;
 
         let form = multipart::Form::new()
-            .text("token", config.api.token.clone())
+            .text("token", config.api.server_token.clone())
             .text("database_name", config.mssql.database.clone())
             .text("backup_started_at", meta.start_time.to_rfc3339())
             .text("backup_completed_at", meta.end_time.to_rfc3339())
@@ -45,7 +45,7 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
             .part("backup_file", file_part);
 
         let response_result = client.post(&config.api.url)
-            .bearer_auth(&config.api.token)
+            .bearer_auth(&config.api.auth_token)
             .header("Accept", "application/json")
             .multipart(form)
             .send()

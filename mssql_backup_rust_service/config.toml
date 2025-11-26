@@ -7,7 +7,8 @@ database = "your_database_to_backup"
 
 [api]
 url = "http://127.0.0.1:8000/api/backups/upload"
-token = "your_server_token" # This is the server token from the API
+server_token = "your_server_token" # This is the server token from the API
+auth_token = "your_sanctum_api_token" # This is the Sanctum API token for authentication
 
 [backup]
 temp_path = "./temp_backups"

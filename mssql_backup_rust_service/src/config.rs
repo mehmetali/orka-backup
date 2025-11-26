@@ -22,7 +22,8 @@ pub struct MssqlConfig {
 #[derive(Deserialize, Debug)]
 pub struct ApiConfig {
     pub url: String,
-    pub token: String,
+    pub server_token: String,
+    pub auth_token: String,
 }
 
 #[derive(Deserialize, Debug)]

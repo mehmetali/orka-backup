@@ -16,4 +16,9 @@ class Group extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function servers()
+    {
+        return $this->hasMany(Server::class);
+    }
 }

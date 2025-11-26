@@ -22,6 +22,11 @@ class User extends Authenticatable
         return $this->hasMany(Backup::class);
     }
 
+    public function servers()
+    {
+        return Server::where('group_id', $this->group_id);
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -32,7 +37,6 @@ class User extends Authenticatable
         'email',
         'password',
         'group_id',
-        'server',
     ];
 
     /**

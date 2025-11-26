@@ -21,8 +21,10 @@ class BackupUploadController extends Controller
         $validated = $request->validated();
         $file = $request->file('backup_file');
 
+        $server = \App\Models\Server::where('token', $validated['token'])->firstOrFail();
+
         // Generate a unique file path
-        $serverName = Str::slug($validated['server_name']);
+        $serverName = Str::slug($server->name);
         $dbName = Str::slug($validated['database_name']);
         $timestamp = now()->format('Ymd_His');
         $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -31,7 +33,7 @@ class BackupUploadController extends Controller
         $filePath = $file->storeAs("backups/{$serverName}/{$dbName}", $fileName, 'local');
 
         $backup = Backup::create([
-            'server_name' => $validated['server_name'],
+            'server_id' => $server->id,
             'db_name' => $validated['database_name'],
             'file_path' => $filePath,
             'file_size_bytes' => $file->getSize(),

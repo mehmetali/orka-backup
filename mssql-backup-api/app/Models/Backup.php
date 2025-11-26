@@ -14,13 +14,18 @@ class Backup extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function server()
+    {
+        return $this->belongsTo(Server::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
-        'server_name',
+        'server_id',
         'db_name',
         'file_path',
         'file_size_bytes',

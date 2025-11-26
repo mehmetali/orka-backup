@@ -22,7 +22,7 @@ class BackupUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'server_name' => 'required|string|max:255',
+            'token' => 'required|string|exists:servers,token',
             'database_name' => 'required|string|max:255',
             'backup_started_at' => 'required|date',
             'backup_completed_at' => 'required|date|after_or_equal:backup_started_at',

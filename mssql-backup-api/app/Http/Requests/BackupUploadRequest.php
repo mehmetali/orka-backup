@@ -26,7 +26,7 @@ class BackupUploadRequest extends FormRequest
             'database_name' => 'required|string|max:255',
             'backup_started_at' => 'required|date',
             'backup_completed_at' => 'required|date|after_or_equal:backup_started_at',
-            'duration_seconds' => 'required|integer|min:0',
+            'duration_seconds' => 'required|numeric|min:0',
             'checksum_sha256' => 'required|string|size:64',
             'backup_file' => 'required|file',
         ];

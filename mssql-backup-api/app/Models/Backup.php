@@ -9,6 +9,11 @@ class Backup extends Model
 {
     use HasFactory;
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *

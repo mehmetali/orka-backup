@@ -57,9 +57,16 @@ pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
 
 fn create_tiberius_config(config: &Config) -> TiberiusConfig {
     let mut t_config = TiberiusConfig::new();
-    t_config.host(&config.mssql.host);
-    t_config.port(config.mssql.port);
-    t_config.authentication(AuthMethod::sql_server(&config.mssql.user, &config.mssql.pass));
-    t_config.trust_cert(); // Use for development; configure properly for production
+
+    t_config.host(config.mssql.host.as_deref().unwrap_or("localhost"));
+    t_config.port(config.mssql.port.unwrap_or(1433));
+    t_config.trust_cert();
+
+    if let (Some(user), Some(pass)) = (&config.mssql.user, &config.mssql.pass) {
+        t_config.authentication(AuthMethod::sql_server(user, pass));
+    } else {
+        t_config.authentication(AuthMethod::Integrated);
+    }
+
     t_config
 }

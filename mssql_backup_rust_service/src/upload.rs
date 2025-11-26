@@ -1,5 +1,5 @@
 use crate::config::Config;
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, anyhow};
 use reqwest::multipart;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -16,22 +16,7 @@ pub struct BackupMeta {
 }
 
 pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
-    let file = File::open(&meta.filepath).await?;
     let checksum = calculate_checksum(&meta.filepath).await?;
-
-    let stream = FramedRead::new(file, BytesCodec::new());
-    let file_part = multipart::Part::stream(reqwest::Body::wrap_stream(stream))
-        .file_name(meta.filepath.file_name().unwrap().to_str().unwrap().to_string())
-        .mime_str("application/octet-stream")?;
-
-    let form = multipart::Form::new()
-        .text("server_name", config.backup.server_name.clone())
-        .text("database_name", config.mssql.database.clone())
-        .text("backup_started_at", meta.start_time.to_rfc3339())
-        .text("backup_completed_at", meta.end_time.to_rfc3339())
-        .text("duration_seconds", meta.duration_seconds.to_string())
-        .text("checksum_sha256", checksum)
-        .part("backup_file", file_part);
 
     let client = reqwest::Client::new();
     let mut attempts = 0;
@@ -42,9 +27,26 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
         attempts += 1;
         tracing::info!("Uploading backup... Attempt {}/{}", attempts, max_attempts);
 
+        let file = File::open(&meta.filepath).await?;
+        let stream = FramedRead::new(file, BytesCodec::new());
+        let file_body = reqwest::Body::wrap_stream(stream);
+
+        let file_part = multipart::Part::stream(file_body)
+            .file_name(meta.filepath.file_name().unwrap().to_str().unwrap().to_string())
+            .mime_str("application/octet-stream")?;
+
+        let form = multipart::Form::new()
+            .text("server_name", config.backup.server_name.clone())
+            .text("database_name", config.mssql.database.clone())
+            .text("backup_started_at", meta.start_time.to_rfc3339())
+            .text("backup_completed_at", meta.end_time.to_rfc3339())
+            .text("duration_seconds", meta.duration_seconds.to_string())
+            .text("checksum_sha256", checksum.clone())
+            .part("backup_file", file_part);
+
         let response_result = client.post(&config.api.url)
             .bearer_auth(&config.api.token)
-            .multipart(form.try_clone().unwrap()) // It's unfortunate we have to clone the form for retries.
+            .multipart(form)
             .send()
             .await;
 

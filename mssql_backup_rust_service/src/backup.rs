@@ -1,10 +1,10 @@
 use crate::config::Config;
-use anyhow::{Result, Context};
-use tiberius::{Client, Config as TiberiusConfig, AuthMethod};
+use anyhow::{bail, Context, Result};
+use chrono::Utc;
+use std::path::{Path, PathBuf};
+use tiberius::{AuthMethod, Client, Config as TiberiusConfig, SqlBrowser};
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncWriteCompatExt;
-use std::path::{Path, PathBuf};
-use chrono::Utc;
 
 pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
     let backup_filename = format!(
@@ -16,11 +16,7 @@ pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
 
     std::fs::create_dir_all(&config.backup.temp_path)?;
 
-    let tiberius_config = create_tiberius_config(config);
-    let tcp = TcpStream::connect(tiberius_config.get_addr()).await?;
-    tcp.set_nodelay(true)?;
-
-    let mut client = Client::connect(tiberius_config, tcp.compat_write()).await?;
+    let mut client = create_mssql_client(config).await?;
 
     let backup_command = format!(
         "BACKUP DATABASE [{}] TO DISK = N'{}' WITH NOFORMAT, NOINIT, NAME = N'{}-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10",
@@ -37,11 +33,7 @@ pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
 }
 
 pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
-    let tiberius_config = create_tiberius_config(config);
-    let tcp = TcpStream::connect(tiberius_config.get_addr()).await?;
-    tcp.set_nodelay(true)?;
-
-    let mut client = Client::connect(tiberius_config, tcp.compat_write()).await?;
+    let mut client = create_mssql_client(config).await?;
 
     let verify_command = format!(
         "RESTORE VERIFYONLY FROM DISK = N'{}'",
@@ -55,11 +47,73 @@ pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn create_tiberius_config(config: &Config) -> TiberiusConfig {
+async fn create_mssql_client(
+    config: &Config,
+) -> Result<Client<tokio_util::compat::Compat<tokio::net::TcpStream>>> {
     let mut t_config = TiberiusConfig::new();
-    t_config.host(&config.mssql.host);
-    t_config.port(config.mssql.port);
-    t_config.authentication(AuthMethod::sql_server(&config.mssql.user, &config.mssql.pass));
+
+    if let (Some(user), Some(pass)) = (&config.mssql.user, &config.mssql.pass) {
+        t_config.authentication(AuthMethod::sql_server(user, pass));
+    } else {
+        t_config.authentication(AuthMethod::Integrated);
+    }
     t_config.trust_cert(); // Use for development; configure properly for production
-    t_config
+
+    // Scenario 1: Direct connection with host and port
+    if let (Some(host), Some(port)) = (&config.mssql.host, config.mssql.port) {
+        tracing::info!("Attempting direct connection to {}:{}", host, port);
+        t_config.host(host);
+        t_config.port(port);
+        let tcp = TcpStream::connect(t_config.get_addr()).await?;
+        tcp.set_nodelay(true)?;
+        let client = Client::connect(t_config, tcp.compat_write()).await?;
+        tracing::info!("Direct connection successful.");
+        return Ok(client);
+    }
+
+    // Scenario 2: Connection with instance name lookup
+    let host = match &config.mssql.host {
+        Some(h) => h.clone(),
+        None => hostname::get()?.to_string_lossy().into_owned(),
+    };
+    t_config.host(&host);
+
+    let instances_to_try: Vec<String> = match &config.mssql.instance_name {
+        Some(name) => vec![name.clone()],
+        None => vec!["MSSQLSERVER".to_string(), "SQLEXPRESS".to_string()],
+    };
+
+    for instance in instances_to_try {
+        let mut conn_config = t_config.clone();
+        tracing::info!(
+            "Attempting to connect to instance '{}' on host '{}'",
+            instance,
+            host
+        );
+        conn_config.instance_name(&instance);
+
+        match TcpStream::connect_named(&conn_config).await {
+            Ok(tcp) => {
+                tcp.set_nodelay(true)?;
+                let client = Client::connect(conn_config, tcp.compat_write()).await?;
+                tracing::info!(
+                    "Successfully connected to instance '{}' on host '{}'",
+                    instance,
+                    host
+                );
+                return Ok(client);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to connect to instance '{}' on host '{}': {}",
+                    instance,
+                    host,
+                    e
+                );
+                continue;
+            }
+        }
+    }
+
+    bail!("Could not connect to any MSSQL instance on host '{}'", host)
 }

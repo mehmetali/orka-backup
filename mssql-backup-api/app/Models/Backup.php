@@ -25,6 +25,7 @@ class Backup extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'user_id',
         'server_id',
         'db_name',
         'file_path',

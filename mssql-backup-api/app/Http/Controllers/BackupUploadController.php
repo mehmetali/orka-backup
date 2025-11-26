@@ -33,6 +33,7 @@ class BackupUploadController extends Controller
         $filePath = $file->storeAs("backups/{$serverName}/{$dbName}", $fileName, 'local');
 
         $backup = Backup::create([
+            'user_id' => auth()->id(),
             'server_id' => $server->id,
             'db_name' => $validated['database_name'],
             'file_path' => $filePath,

@@ -16,6 +16,7 @@ pub struct MssqlConfig {
     pub user: Option<String>,
     pub pass: Option<String>,
     pub database: String,
+    pub instance_name: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

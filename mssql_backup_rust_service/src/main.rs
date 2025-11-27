@@ -18,8 +18,23 @@ use {
 #[cfg(windows)]
 define_windows_service!(ffi_service_main, service_main);
 
+fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
+    let exe_path = std::env::current_exe()?;
+    let log_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let file_appender = tracing_appender::rolling::daily(log_dir, "service.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::fmt()
+        .with_writer(non_blocking)
+        .with_ansi(false)
+        .init();
+
+    Ok(guard)
+}
+
 #[cfg(windows)]
 fn service_main(_args: Vec<OsString>) {
+    let _guard = init_logging().expect("Failed to initialize logging for service.");
     let rt = tokio::runtime::Runtime::new().unwrap();
     if let Err(e) = rt.block_on(run_app()) {
         tracing::error!("Service failed: {}", e);
@@ -88,8 +103,6 @@ fn run_interactive() -> Result<()> {
 }
 
 async fn run_app() -> Result<()> {
-    tracing_subscriber::fmt::init();
-
     let config = config::load_config("config.toml")?;
 
     let cleanup_config_path = config.backup.temp_path.clone();

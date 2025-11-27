@@ -78,7 +78,7 @@ class BackupResource extends Resource
                 Tables\Actions\Action::make('download')
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->url(fn (Backup $record) => Storage::disk('local')->url($record->file_path))
+                    ->url(fn (Backup $record) => route('backups.download', $record))
                     ->openUrlInNewTab(),
             ])
             ->bulkActions([

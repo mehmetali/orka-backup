@@ -26,7 +26,30 @@ fn service_main(_args: Vec<OsString>) {
     }
 }
 
+#[cfg(windows)]
 fn main() -> Result<()> {
+    // Attempt to run as a service first.
+    if let Err(e) = service_dispatcher::start(config::SERVICE_NAME, ffi_service_main) {
+        if let Some(io_error) = e.get_ref() {
+            if io_error.kind() == std::io::ErrorKind::Other && io_error.raw_os_error() == Some(1063) {
+                // This is our cue to run interactively.
+                run_interactive()?;
+            } else {
+                return Err(e.into());
+            }
+        } else {
+            return Err(e.into());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn main() -> Result<()> {
+    run_interactive()
+}
+
+fn run_interactive() -> Result<()> {
     if !Path::new("config.toml").exists() {
         if ui::show_setup_window()? {
             #[cfg(windows)]
@@ -51,18 +74,21 @@ fn main() -> Result<()> {
                 }
             }
         }
-        return Ok(());
+    } else {
+        #[cfg(windows)]
+        {
+            println!("Service is already configured. To manage the service, use:");
+            println!("sc start {}", config::SERVICE_NAME);
+            println!("sc stop {}", config::SERVICE_NAME);
+            println!("sc delete {}", config::SERVICE_NAME);
+        }
+        #[cfg(not(windows))]
+        {
+            println!("Application is configured. Starting backup cycle...");
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(run_app())?;
+        }
     }
-
-    #[cfg(windows)]
-    service_dispatcher::start(config::SERVICE_NAME, ffi_service_main)?;
-
-    #[cfg(not(windows))]
-    {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(run_app())?;
-    }
-
     Ok(())
 }
 

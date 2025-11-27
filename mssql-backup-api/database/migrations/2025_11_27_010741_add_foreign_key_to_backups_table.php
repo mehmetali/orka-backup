@@ -11,12 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('servers', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('token')->unique();
-            $table->foreignId('group_id')->constrained()->onDelete('cascade');
-            $table->timestamps();
+        Schema::table('backups', function (Blueprint $table) {
+            $table->foreign('server_id')->references('id')->on('servers')->onDelete('cascade');
         });
     }
 
@@ -25,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('servers');
+        Schema::table('backups', function (Blueprint $table) {
+            $table->dropForeign(['server_id']);
+        });
     }
 };

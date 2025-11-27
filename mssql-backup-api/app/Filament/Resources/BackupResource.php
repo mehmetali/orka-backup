@@ -84,6 +84,13 @@ class BackupResource extends Resource
             ]);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->join('servers', 'backups.server_id', '=', 'servers.id')
+            ->select('backups.*', 'servers.name as server_name');
+    }
+
     public static function getPages(): array
     {
         return [

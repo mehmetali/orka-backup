@@ -13,7 +13,7 @@ use std::fs::File;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use crate::config::{ApiConfig, BackupConfig, Config, MssqlConfig};
-use fltk::{text::{TextBuffer, TextDisplay}, window::Window};
+use fltk::{text::{TextBuffer, TextDisplay}};
 use std::fs;
 
 pub fn show_log_window() -> Result<()> {

@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     // Attempt to run as a service first.
     match service_dispatcher::start(config::SERVICE_NAME, ffi_service_main) {
         Ok(_) => Ok(()),
-        Err(windows_service::Error::ServiceStart(e)) if e.raw_os_error() == Some(1063) => {
+        Err(windows_service::Error::Winapi(e)) if e.raw_os_error() == Some(1063) => {
             // This is our cue to run interactively.
             run_interactive()
         }

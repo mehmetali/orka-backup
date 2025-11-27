@@ -16,7 +16,7 @@ use crate::config::{ApiConfig, BackupConfig, Config, MssqlConfig};
 
 pub fn show_setup_window() -> Result<bool> {
     let app = app::App::default();
-    let widget_theme = WidgetTheme::new(ThemeType::Aqua);
+    let widget_theme = WidgetTheme::new(ThemeType::Aero);
     widget_theme.apply();
     let mut wind = Window::new(100, 100, 400, 400, "Setup");
     let _frame = Frame::new(0, 0, 400, 50, "Enter Configuration");

@@ -33,12 +33,13 @@ enum Message {
 #[cfg(windows)]
 fn main() -> Result<()> {
     // FLTK UI must run on the main thread.
-    // Check for config file first. If it doesn't exist, run setup and exit.
+    // Check for config file first. If it doesn't exist, run setup.
     if !Path::new("config.toml").exists() {
-        if ui::show_setup_window()? {
-            fltk::dialog::alert_default("Settings saved. Please restart the application.");
+        // If the user saves the config, continue to start the tray icon.
+        // If they close the window without saving, the function returns false and the app exits.
+        if !ui::show_setup_window()? {
+            return Ok(());
         }
-        return Ok(());
     }
 
     let _guard = init_logging().expect("Failed to initialize logging.");

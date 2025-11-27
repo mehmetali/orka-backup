@@ -25,8 +25,6 @@ class ServerResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->required(),
-                Forms\Components\TextInput::make('host')
-                    ->required(),
                 Forms\Components\TextInput::make('token')
                     ->required()
                     ->default(fn () => \Illuminate\Support\Str::random(32))
@@ -43,8 +41,6 @@ class ServerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('host')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('token')
                     ->searchable(),

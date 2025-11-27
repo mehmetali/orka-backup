@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('backups', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('server_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('server_id');
             $table->string('db_name');
             $table->string('file_path');
             $table->unsignedBigInteger('file_size_bytes');

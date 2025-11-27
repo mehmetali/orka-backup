@@ -2,9 +2,6 @@ use serde::Deserialize;
 use std::fs;
 use anyhow::Result;
 
-#[cfg(windows)]
-pub const SERVICE_NAME: &str = "mssql_backup_service";
-
 #[derive(Deserialize, serde::Serialize, Debug)]
 pub struct Config {
     pub mssql: MssqlConfig,

@@ -56,7 +56,7 @@ fn main() -> Result<()> {
         quit_tx.send(Message::Quit).unwrap();
     })?;
 
-    let backup_thread = std::thread::spawn(move || {
+    let _backup_thread = std::thread::spawn(move || {
         if let Err(e) = run_interactive() {
             tracing::error!("Backup thread failed: {}", e);
         }

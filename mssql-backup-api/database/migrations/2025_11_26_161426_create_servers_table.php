@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('servers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('host');
             $table->string('token')->unique();
             $table->foreignId('group_id')->constrained()->onDelete('cascade');
             $table->timestamps();

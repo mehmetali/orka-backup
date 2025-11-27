@@ -20,6 +20,10 @@ tokio-util = { version = "0.7", features = ["codec", "compat"] }
 bytes = "1"
 serde_json = "1.0"
 
-# For windows service
-# You will need to add platform-specific dependencies if you want to run this as a true Windows service.
-# For simplicity, this example will run as a console application.
+fltk = "1.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.6"
+
+[build-dependencies]
+embed-resource = "1.7"

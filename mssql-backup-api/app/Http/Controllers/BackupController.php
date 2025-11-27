@@ -4,38 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Backup;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
+
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupController extends Controller
 {
-    public function index()
+    public function download(Request $request, Backup $backup): StreamedResponse
     {
-        $backups = auth()->user()->backups()->latest()->paginate(10);
+        $user = auth()->user();
 
-        return view('backups.index', compact('backups'));
-    }
-
-    public function download(Request $request, Backup $backup)
-    {
-        if (! $request->hasValidSignature()) {
-            abort(401);
+        if ($user->group_id !== $backup->server->group_id) {
+            abort(403);
         }
 
-        return Storage::download($backup->file_path);
-    }
-
-    public static function sign(Backup $backup)
-    {
-        return URL::temporarySignedRoute(
-            'backups.download',
-            now()->addMinutes(30),
-            ['backup' => $backup->id]
-        );
-    }
-
-    public static function verify(Request $request)
-    {
-        return $request->hasValidSignature();
+        return Storage::disk('local')->download($backup->file_path);
     }
 }

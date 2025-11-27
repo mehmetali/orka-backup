@@ -67,8 +67,10 @@ class BackupResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('backup_completed_at', '<=', $date),
                             );
                     }),
-                 Tables\Filters\SelectFilter::make('server_name')
-                    ->options(fn () => Backup::distinct()->pluck('server_name', 'server_name')->all()),
+                 Tables\Filters\SelectFilter::make('server_id')
+                    ->label('Server Name')
+                    ->options(fn () => \App\Models\Server::pluck('name', 'id')->all())
+                    ->query(fn (Builder $query, array $data) => $query->when($data['value'], fn ($query, $value) => $query->where('server_id', $value))),
                  Tables\Filters\SelectFilter::make('db_name')
                     ->options(fn () => Backup::distinct()->pluck('db_name', 'db_name')->all()),
             ])
@@ -76,12 +78,19 @@ class BackupResource extends Resource
                 Tables\Actions\Action::make('download')
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->url(fn (Backup $record) => Storage::disk('local')->url($record->file_path))
+                    ->url(fn (Backup $record) => route('backups.download', $record))
                     ->openUrlInNewTab(),
             ])
             ->bulkActions([
                 //
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->join('servers', 'backups.server_id', '=', 'servers.id')
+            ->select('backups.*', 'servers.name as server_name');
     }
 
     public static function getPages(): array

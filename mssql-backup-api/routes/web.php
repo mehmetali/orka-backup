@@ -8,6 +8,5 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
     Route::get('/backups/{backup}/download', [BackupController::class, 'download'])->name('backups.download');
 });

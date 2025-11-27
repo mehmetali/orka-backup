@@ -10,13 +10,16 @@ use std::time::Duration;
 use chrono::Utc;
 
 #[cfg(windows)]
-use windows_service::{define_windows_service, service_dispatcher};
+use {
+    std::ffi::OsString,
+    windows_service::{define_windows_service, service_dispatcher},
+};
 
 #[cfg(windows)]
 define_windows_service!(ffi_service_main, service_main);
 
 #[cfg(windows)]
-fn service_main(args: Vec<String>) {
+fn service_main(_args: Vec<OsString>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     if let Err(e) = rt.block_on(run_app()) {
         tracing::error!("Service failed: {}", e);
@@ -55,12 +58,14 @@ fn main() -> Result<()> {
     service_dispatcher::start(config::SERVICE_NAME, ffi_service_main)?;
 
     #[cfg(not(windows))]
-    run_app()?;
+    {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(run_app())?;
+    }
 
     Ok(())
 }
 
-#[tokio::main]
 async fn run_app() -> Result<()> {
     tracing_subscriber::fmt::init();
 

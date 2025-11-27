@@ -32,6 +32,15 @@ enum Message {
 
 #[cfg(windows)]
 fn main() -> Result<()> {
+    // FLTK UI must run on the main thread.
+    // Check for config file first. If it doesn't exist, run setup and exit.
+    if !Path::new("config.toml").exists() {
+        if ui::show_setup_window()? {
+            fltk::dialog::alert_default("Settings saved. Please restart the application.");
+        }
+        return Ok(());
+    }
+
     let _guard = init_logging().expect("Failed to initialize logging.");
 
     let mut tray = tray_item::TrayItem::new(
@@ -57,9 +66,8 @@ fn main() -> Result<()> {
     })?;
 
     let _backup_thread = std::thread::spawn(move || {
-        if let Err(e) = run_interactive() {
-            tracing::error!("Backup thread failed: {}", e);
-        }
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(run_app()).expect("Backup thread failed");
     });
 
     loop {
@@ -88,19 +96,9 @@ fn main() -> Result<()> {
 
 #[cfg(not(windows))]
 fn main() -> Result<()> {
-    run_interactive()
-}
-
-fn run_interactive() -> Result<()> {
-    if !Path::new("config.toml").exists() {
-        if ui::show_setup_window()? {
-            fltk::dialog::alert_default("Settings saved. Please restart the application.");
-        }
-    } else {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(run_app())?;
-    }
-    Ok(())
+    // Non-windows version doesn't have a tray icon, so we just run the app directly.
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(run_app())
 }
 
 async fn run_app() -> Result<()> {

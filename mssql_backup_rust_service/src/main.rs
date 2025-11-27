@@ -29,19 +29,14 @@ fn service_main(_args: Vec<OsString>) {
 #[cfg(windows)]
 fn main() -> Result<()> {
     // Attempt to run as a service first.
-    if let Err(e) = service_dispatcher::start(config::SERVICE_NAME, ffi_service_main) {
-        if let Some(io_error) = e.get_ref() {
-            if io_error.kind() == std::io::ErrorKind::Other && io_error.raw_os_error() == Some(1063) {
-                // This is our cue to run interactively.
-                run_interactive()?;
-            } else {
-                return Err(e.into());
-            }
-        } else {
-            return Err(e.into());
+    match service_dispatcher::start(config::SERVICE_NAME, ffi_service_main) {
+        Ok(_) => Ok(()),
+        Err(windows_service::Error::ServiceStart(e)) if e.raw_os_error() == Some(1063) => {
+            // This is our cue to run interactively.
+            run_interactive()
         }
+        Err(e) => Err(e.into()),
     }
-    Ok(())
 }
 
 #[cfg(not(windows))]

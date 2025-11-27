@@ -43,14 +43,14 @@ fn service_main(_args: Vec<OsString>) {
 
 #[cfg(windows)]
 fn main() -> Result<()> {
-    // Attempt to run as a service first.
-    match service_dispatcher::start(config::SERVICE_NAME, ffi_service_main) {
-        Ok(_) => Ok(()),
-        Err(windows_service::Error::Winapi(e)) if e.raw_os_error() == Some(1063) => {
-            // This is our cue to run interactively.
-            run_interactive()
-        }
-        Err(e) => Err(e.into()),
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "--service" {
+        // Run as a service
+        service_dispatcher::start(config::SERVICE_NAME, ffi_service_main)?;
+        Ok(())
+    } else {
+        // Run as interactive CLI
+        run_interactive()
     }
 }
 
@@ -62,27 +62,7 @@ fn main() -> Result<()> {
 fn run_interactive() -> Result<()> {
     if !Path::new("config.toml").exists() {
         if ui::show_setup_window()? {
-            #[cfg(windows)]
-            {
-                use std::process::Command;
-                // Config saved, now install and start the service
-                let exe_path = std::env::current_exe()?;
-                let bin_path = format!("binPath=\"{}\"", exe_path.display());
-                let status = Command::new("sc")
-                    .args(&["create", config::SERVICE_NAME, &bin_path])
-                    .status()?;
-                if !status.success() {
-                    fltk::dialog::alert_default("Failed to install service. Please run as Administrator.");
-                    return Err(anyhow::anyhow!("Failed to install service"));
-                }
-                let status = Command::new("sc")
-                    .args(&["start", config::SERVICE_NAME])
-                    .status()?;
-                if !status.success() {
-                    fltk::dialog::alert_default("Failed to start service. Please check the logs.");
-                    return Err(anyhow::anyhow!("Failed to start service"));
-                }
-            }
+            fltk::dialog::alert_default("Settings saved. Please restart the application.");
         }
     } else {
         #[cfg(windows)]

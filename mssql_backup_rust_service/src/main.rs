@@ -36,7 +36,7 @@ fn main() -> Result<()> {
 
     let mut tray = tray_item::TrayItem::new(
         "MSSQL Backup Service",
-        tray_item::IconSource::Resource("app-icon"),
+        "app-icon",
     )?;
 
     let (tx, rx) = std::sync::mpsc::channel();

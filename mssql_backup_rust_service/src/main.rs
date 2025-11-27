@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 mod config;
 mod backup;
 mod upload;
@@ -8,15 +9,6 @@ use anyhow::Result;
 use std::path::Path;
 use std::time::Duration;
 use chrono::Utc;
-
-#[cfg(windows)]
-use {
-    std::ffi::OsString,
-    windows_service::{define_windows_service, service_dispatcher},
-};
-
-#[cfg(windows)]
-define_windows_service!(ffi_service_main, service_main);
 
 fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let exe_path = std::env::current_exe()?;
@@ -32,27 +24,67 @@ fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     Ok(guard)
 }
 
-#[cfg(windows)]
-fn service_main(_args: Vec<OsString>) {
-    let _guard = init_logging().expect("Failed to initialize logging for service.");
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    if let Err(e) = rt.block_on(run_app()) {
-        tracing::error!("Service failed: {}", e);
-    }
+enum Message {
+    ViewLogs,
+    EditConfig,
+    Quit,
 }
 
 #[cfg(windows)]
 fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && args[1] == "--service" {
-        // Run as a service
-        service_dispatcher::start(config::SERVICE_NAME, ffi_service_main)?;
-        Ok(())
-    } else {
-        // Run as interactive CLI
-        run_interactive()
+    let _guard = init_logging().expect("Failed to initialize logging.");
+
+    let mut tray = tray_item::TrayItem::new(
+        "MSSQL Backup Service",
+        tray_item::IconSource::Resource("app-icon"),
+    )?;
+
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let view_logs_tx = tx.clone();
+    tray.add_menu_item("View Logs", move || {
+        view_logs_tx.send(Message::ViewLogs).unwrap();
+    })?;
+
+    let edit_config_tx = tx.clone();
+    tray.add_menu_item("Edit Config", move || {
+        edit_config_tx.send(Message::EditConfig).unwrap();
+    })?;
+
+    let quit_tx = tx.clone();
+    tray.add_menu_item("Quit", move || {
+        quit_tx.send(Message::Quit).unwrap();
+    })?;
+
+    let backup_thread = std::thread::spawn(move || {
+        if let Err(e) = run_interactive() {
+            tracing::error!("Backup thread failed: {}", e);
+        }
+    });
+
+    loop {
+        match rx.recv() {
+            Ok(Message::ViewLogs) => {
+                if let Err(e) = ui::show_log_window() {
+                    tracing::error!("Failed to show log window: {}", e);
+                }
+            }
+            Ok(Message::EditConfig) => {
+                if let Err(e) = ui::show_setup_window() {
+                    tracing::error!("Failed to show setup window: {}", e);
+                }
+            }
+            Ok(Message::Quit) => {
+                // TODO: properly handle thread shutdown
+                break;
+            }
+            Err(_) => break, // Sender dropped, exit
+        }
     }
+
+    Ok(())
 }
+
 
 #[cfg(not(windows))]
 fn main() -> Result<()> {
@@ -65,19 +97,8 @@ fn run_interactive() -> Result<()> {
             fltk::dialog::alert_default("Settings saved. Please restart the application.");
         }
     } else {
-        #[cfg(windows)]
-        {
-            println!("Service is already configured. To manage the service, use:");
-            println!("sc start {}", config::SERVICE_NAME);
-            println!("sc stop {}", config::SERVICE_NAME);
-            println!("sc delete {}", config::SERVICE_NAME);
-        }
-        #[cfg(not(windows))]
-        {
-            println!("Application is configured. Starting backup cycle...");
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(run_app())?;
-        }
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(run_app())?;
     }
     Ok(())
 }

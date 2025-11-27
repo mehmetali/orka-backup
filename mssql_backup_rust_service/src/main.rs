@@ -2,13 +2,66 @@ mod config;
 mod backup;
 mod upload;
 mod cleanup;
+mod ui;
 
 use anyhow::Result;
+use std::path::Path;
 use std::time::Duration;
 use chrono::Utc;
 
+#[cfg(windows)]
+use windows_service::{define_windows_service, service_dispatcher};
+
+#[cfg(windows)]
+define_windows_service!(ffi_service_main, service_main);
+
+#[cfg(windows)]
+fn service_main(args: Vec<String>) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    if let Err(e) = rt.block_on(run_app()) {
+        tracing::error!("Service failed: {}", e);
+    }
+}
+
+fn main() -> Result<()> {
+    if !Path::new("config.toml").exists() {
+        if ui::show_setup_window()? {
+            #[cfg(windows)]
+            {
+                use std::process::Command;
+                // Config saved, now install and start the service
+                let exe_path = std::env::current_exe()?;
+                let bin_path = format!("binPath=\"{}\"", exe_path.display());
+                let status = Command::new("sc")
+                    .args(&["create", config::SERVICE_NAME, &bin_path])
+                    .status()?;
+                if !status.success() {
+                    fltk::dialog::alert_default("Failed to install service. Please run as Administrator.");
+                    return Err(anyhow::anyhow!("Failed to install service"));
+                }
+                let status = Command::new("sc")
+                    .args(&["start", config::SERVICE_NAME])
+                    .status()?;
+                if !status.success() {
+                    fltk::dialog::alert_default("Failed to start service. Please check the logs.");
+                    return Err(anyhow::anyhow!("Failed to start service"));
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    #[cfg(windows)]
+    service_dispatcher::start(config::SERVICE_NAME, ffi_service_main)?;
+
+    #[cfg(not(windows))]
+    run_app()?;
+
+    Ok(())
+}
+
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn run_app() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let config = config::load_config("config.toml")?;

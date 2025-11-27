@@ -13,6 +13,28 @@ use std::fs::File;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use crate::config::{ApiConfig, BackupConfig, Config, MssqlConfig};
+use fltk::{text::{TextBuffer, TextDisplay}, window::Window};
+use std::fs;
+
+pub fn show_log_window() -> Result<()> {
+    let mut wind = Window::new(100, 100, 600, 400, "Logs");
+    let mut text_buffer = TextBuffer::default();
+    let mut text_display = TextDisplay::new(5, 5, 590, 390, "");
+
+    let log_content = fs::read_to_string("service.log").unwrap_or_else(|e| format!("Failed to read log file: {}", e));
+    text_buffer.set_text(&log_content);
+    text_display.set_buffer(text_buffer);
+
+    wind.end();
+    wind.show();
+
+    while wind.shown() {
+        app::wait();
+    }
+
+    Ok(())
+}
+
 
 pub fn show_setup_window() -> Result<bool> {
     let app = app::App::default();

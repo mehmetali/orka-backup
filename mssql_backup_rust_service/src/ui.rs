@@ -21,6 +21,8 @@ pub fn show_log_window() -> Result<()> {
     let mut wind = Window::new(100, 100, 600, 400, "Logs");
     let mut text_buffer = TextBuffer::default();
     let mut text_display = TextDisplay::new(5, 5, 590, 390, "");
+    wind.make_resizable(true);
+    wind.resizable(&text_display);
 
     let log_path = logging::get_log_filepath();
 
@@ -33,16 +35,52 @@ pub fn show_log_window() -> Result<()> {
     };
 
     text_buffer.set_text(&log_content);
-    text_display.set_buffer(text_buffer);
+    text_display.set_buffer(text_buffer.clone());
 
     wind.end();
     wind.show();
 
+    let (s, r) = app::channel();
+
+    // Initial load
+    update_log_view(&mut text_display, &mut text_buffer, &log_path);
+
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            s.send(());
+        }
+    });
+
     while wind.shown() {
-        app::wait();
+        if app::wait_for(0.1).unwrap() {
+            if let Some(_) = r.recv() {
+                update_log_view(&mut text_display, &mut text_buffer, &log_path);
+            }
+        }
     }
 
     Ok(())
+}
+
+fn update_log_view(
+    text_display: &mut TextDisplay,
+    text_buffer: &mut TextBuffer,
+    log_path: &std::path::Path,
+) {
+    let log_content = match fs::read_to_string(log_path) {
+        Ok(content) => content,
+        Err(_) => return,
+    };
+
+    let current_content = text_buffer.text();
+    if current_content != log_content {
+        text_buffer.set_text(&log_content);
+        text_display.scroll(
+            text_buffer.length() as i32,
+            0,
+        );
+    }
 }
 
 

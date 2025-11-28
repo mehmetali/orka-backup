@@ -15,18 +15,16 @@ use std::sync::{Arc, Mutex};
 use crate::config::{ApiConfig, BackupConfig, Config, MssqlConfig};
 use fltk::{text::{TextBuffer, TextDisplay}};
 use std::fs;
+use crate::logging;
 
 pub fn show_log_window() -> Result<()> {
     let mut wind = Window::new(100, 100, 600, 400, "Logs");
     let mut text_buffer = TextBuffer::default();
     let mut text_display = TextDisplay::new(5, 5, 590, 390, "");
 
-    let log_path = std::env::current_exe()?
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."))
-        .join("service.log");
+    let log_path = logging::get_log_filepath();
 
-    let log_content = match fs::read_to_string(log_path) {
+    let log_content = match fs::read_to_string(&log_path) {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             "Log file has not been created yet.".to_string()

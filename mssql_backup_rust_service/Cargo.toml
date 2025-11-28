@@ -23,9 +23,9 @@ serde_json = "1.0"
 
 fltk = "1.4"
 fltk-theme = "0.7"
+tray-item = "0.7"
 
 [target.'cfg(windows)'.dependencies]
-tray-item = "0.7"
 winapi = { version = "0.3", features = ["winuser", "synchapi", "errhandlingapi"] }
 
 [build-dependencies]

@@ -4,6 +4,7 @@ mod backup;
 mod upload;
 mod cleanup;
 mod ui;
+mod logging;
 
 use anyhow::Result;
 use std::path::Path;
@@ -11,9 +12,10 @@ use std::time::Duration;
 use chrono::Utc;
 
 fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
-    let exe_path = std::env::current_exe()?;
-    let log_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
-    let file_appender = tracing_appender::rolling::daily(log_dir, "service.log");
+    let log_path = logging::get_log_filepath();
+    let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
+    let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
+    let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()

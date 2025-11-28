@@ -31,7 +31,14 @@ enum Message {
 }
 
 #[cfg(windows)]
-fn main() -> Result<()> {
+fn main() {
+    let app = fltk::app::App::default();
+    if let Err(e) = run() {
+        fltk::dialog::alert_default(&format!("Application Error: {}", e));
+    }
+}
+
+fn run() -> Result<()> {
     // FLTK UI must run on the main thread.
     // Check for config file first. If it doesn't exist, run setup.
     if !Path::new("config.toml").exists() {
@@ -68,7 +75,9 @@ fn main() -> Result<()> {
 
     let _backup_thread = std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(run_app()).expect("Backup thread failed");
+        if let Err(e) = rt.block_on(run_app()) {
+            tracing::error!("Backup thread failed: {}", e);
+        }
     });
 
     loop {

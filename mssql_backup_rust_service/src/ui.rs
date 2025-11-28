@@ -21,7 +21,19 @@ pub fn show_log_window() -> Result<()> {
     let mut text_buffer = TextBuffer::default();
     let mut text_display = TextDisplay::new(5, 5, 590, 390, "");
 
-    let log_content = fs::read_to_string("service.log").unwrap_or_else(|e| format!("Failed to read log file: {}", e));
+    let log_path = std::env::current_exe()?
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("service.log");
+
+    let log_content = match fs::read_to_string(log_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            "Log file has not been created yet.".to_string()
+        }
+        Err(e) => format!("Failed to read log file: {}", e),
+    };
+
     text_buffer.set_text(&log_content);
     text_display.set_buffer(text_buffer);
 

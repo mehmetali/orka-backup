@@ -6,11 +6,11 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use sha2::{Sha256, Digest};
 use std::path::Path;
 use std::time::Duration;
-use chrono::{DateTime, Utc};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 pub struct BackupMeta {
-    pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
+    pub start_time: OffsetDateTime,
+    pub end_time: OffsetDateTime,
     pub duration_seconds: i64,
     pub filepath: std::path::PathBuf,
 }
@@ -38,8 +38,8 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
         let form = multipart::Form::new()
             .text("token", config.api.server_token.clone())
             .text("database_name", config.mssql.database.clone())
-            .text("backup_started_at", meta.start_time.to_rfc3339())
-            .text("backup_completed_at", meta.end_time.to_rfc3339())
+            .text("backup_started_at", meta.start_time.format(&Rfc3339)?)
+            .text("backup_completed_at", meta.end_time.format(&Rfc3339)?)
             .text("duration_seconds", meta.duration_seconds.to_string())
             .text("checksum_sha256", checksum.clone())
             .part("backup_file", file_part);

@@ -9,7 +9,30 @@ use makepad_widgets::*;
 use anyhow::Result;
 use std::path::Path;
 use std::time::Duration;
-use chrono::Utc;
+use ctor::ctor;
+use time::OffsetDateTime;
+
+#[cfg(windows)]
+#[ctor]
+fn set_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = info.to_string();
+        let mut wide_msg: Vec<u16> = msg.encode_utf16().collect();
+        wide_msg.push(0);
+
+        let mut wide_title: Vec<u16> = "Panic!".encode_utf16().collect();
+        wide_title.push(0);
+
+        unsafe {
+            winapi::um::winuser::MessageBoxW(
+                std::ptr::null_mut(),
+                wide_msg.as_ptr(),
+                wide_title.as_ptr(),
+                0x10, // MB_ICONHAND
+            );
+        }
+    }));
+}
 
 live_design! {
     import makepad_widgets::base::*;
@@ -113,7 +136,7 @@ async fn run_app() -> Result<()> {
 }
 
 async fn run_backup_cycle(config: &config::Config) -> Result<()> {
-    let start_time = Utc::now();
+    let start_time = OffsetDateTime::now_utc();
     let backup_filepath = match backup::perform_backup(config).await {
         Ok(path) => {
             tracing::info!("Backup created at: {:?}", path);
@@ -125,8 +148,8 @@ async fn run_backup_cycle(config: &config::Config) -> Result<()> {
         std::fs::remove_file(&backup_filepath)?;
         anyhow::bail!("Failed to verify backup: {}", e);
     }
-    let end_time = Utc::now();
-    let duration_seconds = end_time.signed_duration_since(start_time).num_seconds();
+    let end_time = OffsetDateTime::now_utc();
+    let duration_seconds = (end_time - start_time).as_seconds_f64() as i64;
     let meta = upload::BackupMeta {
         start_time,
         end_time,

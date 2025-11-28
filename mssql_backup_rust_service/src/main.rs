@@ -32,7 +32,36 @@ enum Message {
 
 #[cfg(windows)]
 fn main() {
-    let app = fltk::app::App::default();
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use winapi::um::{synchapi, errhandlingapi, winuser};
+    use winapi::shared::minwindef::FALSE;
+
+    let mutex_name: Vec<u16> = OsStr::new("mssql-backup-rust-service-mutex")
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    let mutex = unsafe {
+        synchapi::CreateMutexW(std::ptr::null_mut(), FALSE, mutex_name.as_ptr())
+    };
+
+    if unsafe { errhandlingapi::GetLastError() } == 183 { // ERROR_ALREADY_EXISTS
+        let msg: Vec<u16> = OsStr::new("Application is already running.")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let title: Vec<u16> = OsStr::new("MSSQL Backup Service")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe {
+            winuser::MessageBoxW(std::ptr::null_mut(), msg.as_ptr(), title.as_ptr(), winuser::MB_OK | winuser::MB_ICONINFORMATION);
+        }
+        return;
+    }
+
+    let _app = fltk::app::App::default();
     if let Err(e) = run() {
         fltk::dialog::alert_default(&format!("Application Error: {}", e));
     }

@@ -26,6 +26,7 @@ fltk-theme = "0.7"
 
 [target.'cfg(windows)'.dependencies]
 tray-item = "0.7"
+winapi = { version = "0.3", features = ["winuser", "synchapi", "errhandlingapi"] }
 
 [build-dependencies]
 embed-resource = "1.7"

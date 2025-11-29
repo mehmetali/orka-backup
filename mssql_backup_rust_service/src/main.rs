@@ -1,4 +1,5 @@
 // #![windows_subsystem = "windows"]
+
 mod config;
 mod backup;
 mod upload;
@@ -11,27 +12,18 @@ use std::path::Path;
 use std::time::Duration;
 use ctor::ctor;
 use time::OffsetDateTime;
+use tracing_subscriber::prelude::*;
+use once_cell::sync::Lazy;
 
-#[cfg(windows)]
+// This static guard will be initialized once, ensuring the logging thread
+// stays alive for the duration of the application.
+static LOGGING_GUARD: Lazy<tracing_appender::non_blocking::WorkerGuard> = Lazy::new(init_logging);
+
 #[ctor]
-fn set_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let msg = info.to_string();
-        let mut wide_msg: Vec<u16> = msg.encode_utf16().collect();
-        wide_msg.push(0);
-
-        let mut wide_title: Vec<u16> = "Panic!".encode_utf16().collect();
-        wide_title.push(0);
-
-        unsafe {
-            winapi::um::winuser::MessageBoxW(
-                std::ptr::null_mut(),
-                wide_msg.as_ptr(),
-                wide_title.as_ptr(),
-                0x10, // MB_ICONHAND
-            );
-        }
-    }));
+fn early_init() {
+    // Accessing the Lazy guard will initialize it.
+    Lazy::force(&LOGGING_GUARD);
+    tracing::info!("Early init logging complete.");
 }
 
 live_design! {
@@ -89,7 +81,6 @@ impl AppMain for App {
 
         if let Event::Startup = event {
             if Path::new("config.toml").exists() {
-                let _guard = init_logging().expect("Failed to initialize logging.");
                 std::thread::spawn(move || {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     if let Err(e) = rt.block_on(run_app()) {
@@ -108,14 +99,27 @@ fn main() {
     // The actual entry point is the `app_main!` macro.
 }
 
-fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
+fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let log_path = logging::get_log_filepath();
     let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
     let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
+
     let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).with_ansi(false).init();
-    Ok(guard)
+    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
+
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout);
+
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(non_blocking_file)
+        .with_ansi(false);
+
+    tracing_subscriber::registry()
+        .with(console_layer)
+        .with(file_layer)
+        .init();
+
+    guard
 }
 
 async fn run_app() -> Result<()> {

@@ -5,29 +5,6 @@ use crate::run_app;
 live_design! {
     use link::shaders::*;
     use link::widgets::*;
-
-    THEME_FONT_REGULAR = {
-        font_family:{
-            latin = {path: dep("IBMPlexSans-Text.ttf")},
-            chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-            emoji = {path: dep("NotoColorEmoji.ttf")},
-        }
-    }
-    THEME_FONT_BOLD = {
-        font_family:{
-            latin = {path: dep("IBMPlexSans-SemiBold.ttf")},
-            chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-            emoji = {path: dep("NotoColorEmoji.ttf")},
-        }
-    }
-    THEME_FONT_ITALIC = {
-        font_family:{
-            latin = {path: dep("IBMPlexSans-Italic.ttf")},
-            chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-            emoji = {path: dep("NotoColorEmoji.ttf")},
-        }
-    }
-/*
     App = {{App}} {
         ui: <Window> {
             show_bg: true,
@@ -42,56 +19,7 @@ live_design! {
             }
         }
     }
-        */
-    App = {{App}} {
-        ui: <Root>{
-            main_window = <Window>{
-                window: {title: "Hello"},
-                body = <View> {
-                    padding: 100,
-                    <View> {
-                        width: 300,
-                        height: 750,
-                        flow: Right {
-                            row_align: Bottom,
-                            wrap: true,
-                        },
-                        show_bg: true,
-                        draw_bg: {
-                            color: #888
-                        }
-                        <Button> {
-                            margin: 0.0,
-                            width: 100,
-                            height: 100,
-                            metrics: {
-                                descender: 50,
-                            }
-                        }
-                        <Button> {
-                            margin: 0.0,
-                            width: 200,
-                            height: 200,
-                        }
-                        <Button> {
-                            margin: 0.0,
-                            width: 200,
-                            height: 200,
-                            metrics: {
-                                descender: 100.0,
-                                line_scale: 1.1,
-                            }
-                        }
-                        <Button> {
-                            margin: 0.0,
-                            width: 100,
-                            height: 100,
-                        }
-                    }
-                }
-            }
-        }
-    }
+        
 }
 
 #[derive(Live, LiveHook)]
@@ -102,31 +30,7 @@ pub struct App {
 
 impl LiveRegister for App {
     fn live_register(cx: &mut Cx) {
-        tracing::info!("Makepad live register started.");
         makepad_widgets::live_design(cx);
-        live_design!{
-            THEME_FONT_REGULAR = {
-                font_family: {
-                    latin = {path: dep("IBMPlexSans-Text.ttf")},
-                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-                    emoji = {path: dep("NotoColorEmoji.ttf")},
-                }
-            }
-            THEME_FONT_BOLD = {
-                font_family:{
-                    latin = {path: dep("IBMPlexSans-SemiBold.ttf")},
-                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-                    emoji = {path: dep("NotoColorEmoji.ttf")},
-                }
-            }
-            THEME_FONT_ITALIC = {
-                font_family:{
-                    latin = {path: dep("IBMPlexSans-Italic.ttf")},
-                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
-                    emoji = {path: dep("NotoColorEmoji.ttf")},
-                }
-            }
-        }
     }
 }
 

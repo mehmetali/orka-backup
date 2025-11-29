@@ -1,4 +1,5 @@
 // #![windows_subsystem = "windows"]
+
 mod config;
 mod backup;
 mod upload;
@@ -12,7 +13,18 @@ use std::time::Duration;
 use ctor::ctor;
 use time::OffsetDateTime;
 use tracing_subscriber::prelude::*;
+use once_cell::sync::Lazy;
 
+// This static guard will be initialized once, ensuring the logging thread
+// stays alive for the duration of the application.
+static LOGGING_GUARD: Lazy<tracing_appender::non_blocking::WorkerGuard> = Lazy::new(init_logging);
+
+#[ctor]
+fn early_init() {
+    // Accessing the Lazy guard will initialize it.
+    Lazy::force(&LOGGING_GUARD);
+    tracing::info!("Early init logging complete.");
+}
 
 live_design! {
     import makepad_widgets::base::*;
@@ -69,7 +81,6 @@ impl AppMain for App {
 
         if let Event::Startup = event {
             if Path::new("config.toml").exists() {
-                let _guard = init_logging().expect("Failed to initialize logging.");
                 std::thread::spawn(move || {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     if let Err(e) = rt.block_on(run_app()) {
@@ -88,7 +99,7 @@ fn main() {
     // The actual entry point is the `app_main!` macro.
 }
 
-fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
+fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let log_path = logging::get_log_filepath();
     let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
     let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
@@ -108,7 +119,7 @@ fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
         .with(file_layer)
         .init();
 
-    Ok(guard)
+    guard
 }
 
 async fn run_app() -> Result<()> {

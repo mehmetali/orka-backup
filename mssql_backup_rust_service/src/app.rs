@@ -86,24 +86,26 @@ impl LiveRegister for App {
             makepad_widgets::makepad_draw::shader::std::font_atlas::font_sdf;
             makepad_widgets::makepad_draw::font_loader::Font;
 
-            REGULAR_FONT = {
-                path: dep("IBMPlexSans-Text.ttf")
+            THEME_FONT_REGULAR = {
+                font_family:{
+                    latin = {path: dep("IBMPlexSans-Text.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
             }
-
-            BOLD_FONT = {
-                path: dep("IBMPlexSans-SemiBold.ttf")
+            THEME_FONT_BOLD = {
+                font_family:{
+                    latin = {path: dep("IBMPlexSans-SemiBold.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
             }
-
-            ITALIC_FONT = {
-                path: dep("IBMPlexSans-Italic.ttf")
-            }
-
-            FONT_CHINESE = {
-                path: dep("LXGWWenKaiRegular.ttf")
-            }
-
-            FONT_EMOJI = {
-                path: dep("NotoColorEmoji.ttf")
+            THEME_FONT_ITALIC = {
+                font_family:{
+                    latin = {path: dep("IBMPlexSans-Italic.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
             }
         }
     }

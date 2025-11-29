@@ -3,7 +3,6 @@ use std::path::Path;
 use crate::run_app;
 
 live_design! {
-    use link::theme::*;
     use link::shaders::*;
     use link::widgets::*;
 

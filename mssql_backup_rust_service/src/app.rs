@@ -81,6 +81,7 @@ pub struct App {
 
 impl LiveRegister for App {
     fn live_register(cx: &mut Cx) {
+        tracing::info!("Makepad live register started.");
         makepad_widgets::live_design(cx);
         live_design!{
             makepad_widgets::makepad_draw::shader::std::font_atlas::font_sdf;

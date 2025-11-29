@@ -1,0 +1,3 @@
+[submodule "makepad"]
+	path = makepad
+	url = https://github.com/makepad/makepad.git

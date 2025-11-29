@@ -344,12 +344,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "easy-cast"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f40539c229fc2e4674bdecdf24bfcc2cb83631ca911c78a035fa9f2381c32b"
-
-[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,10 +1408,10 @@ dependencies = [
  "anyhow",
  "bytes",
  "ctor",
- "easy-cast",
  "futures",
  "hostname",
  "makepad-widgets",
+ "once_cell",
  "reqwest",
  "serde",
  "serde_json",

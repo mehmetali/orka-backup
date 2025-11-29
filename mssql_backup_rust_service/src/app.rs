@@ -6,16 +6,18 @@ live_design! {
     use link::shaders::*;
     use link::widgets::*;
     App = {{App}} {
-        ui: <Window> {
-            show_bg: true,
-            width: Fit,
-            height: Fit,
-            body = <View> {
-                align: {x: 0.5, y: 0.5},
-                spacing: 20,
-                <Button> { text: "Setup" },
-                <Button> { text: "View Logs" },
-                <Button> { text: "Quit" }
+        ui: <Root> {
+            main_window = <Window> {
+                show_bg: true,
+                width: Fit,
+                height: Fit,
+                body = <View> {
+                    align: {x: 0.5, y: 0.5},
+                    spacing: 20,
+                    <Button> { text: "Setup" }
+                    <Button> { text: "View Logs" }
+                    <Button> { text: "Quit" }
+                }
             }
         }
     }

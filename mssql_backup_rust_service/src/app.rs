@@ -13,8 +13,8 @@ live_design! {
             body = <View> {
                 align: {x: 0.5, y: 0.5},
                 spacing: 20,
-                <Button> { text: "Setup" },
-                <Button> { text: "View Logs" },
+                <Button> { text: "Setup" }
+                <Button> { text: "View Logs" }
                 <Button> { text: "Quit" }
             }
         }

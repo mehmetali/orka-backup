@@ -1,16 +1,18 @@
 use crate::config::Config;
 use anyhow::{bail, Context, Result};
-use chrono::Utc;
 use std::path::{Path, PathBuf};
 use tiberius::{AuthMethod, Client, Config as TiberiusConfig, EncryptionLevel, SqlBrowser};
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncWriteCompatExt;
+use time::OffsetDateTime;
+use time::macros::format_description;
 
 pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
+    let format = format_description!("[year][month][day]_[hour][minute][second]");
     let backup_filename = format!(
         "{}_{}.bak",
         config.mssql.database,
-        Utc::now().format("%Y%m%d_%H%M%S")
+        OffsetDateTime::now_utc().format(&format)?
     );
     let backup_filepath = Path::new(&config.backup.temp_path).join(&backup_filename);
 

@@ -87,13 +87,13 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        if self.ui.button(id!(quit_button)).clicked(actions) {
+        if self.ui.button(&[id!(quit_button)]).clicked(actions) {
             cx.quit();
         }
-        if self.ui.button(id!(setup_button)).clicked(actions) {
+        if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");
         }
-        if self.ui.button(id!(log_button)).clicked(actions) {
+        if self.ui.button(&[id!(log_button)]).clicked(actions) {
             log!("Log button clicked!");
         }
     }

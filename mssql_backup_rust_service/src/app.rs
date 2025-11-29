@@ -3,8 +3,10 @@ use std::path::Path;
 use crate::run_app;
 
 live_design! {
+    use link::theme::*;
     use link::shaders::*;
     use link::widgets::*;
+    /*
     App = {{App}} {
         ui: <Root> {
             main_window = <Window> {
@@ -17,6 +19,56 @@ live_design! {
                     <Button> { text: "Setup" }
                     <Button> { text: "View Logs" }
                     <Button> { text: "Quit" }
+                }
+            }
+        }
+    }
+        */
+    App = {{App}} {
+        ui: <Root>{
+            main_window = <Window>{
+                window: {title: "你好，こんにちは, Привет, Hello"},
+                body = <View> {
+                    padding: 100,
+                    <View> {
+                        width: 300,
+                        height: 750,
+                        flow: Right {
+                            row_align: Bottom,
+                            wrap: true,
+                        },
+                        show_bg: true,
+                        draw_bg: {
+                            color: #888
+                        }
+                        <Button> {
+                            margin: 0.0,
+                            width: 100,
+                            height: 100,
+                            metrics: {
+                                descender: 50,
+                            }
+                        }
+                        <Button> {
+                            margin: 0.0,
+                            width: 200,
+                            height: 200,
+                        }
+                        <Button> {
+                            margin: 0.0,
+                            width: 200,
+                            height: 200,
+                            metrics: {
+                                descender: 100.0,
+                                line_scale: 1.1,
+                            }
+                        }
+                        <Button> {
+                            margin: 0.0,
+                            width: 100,
+                            height: 100,
+                        }
+                    }
                 }
             }
         }

@@ -1,12 +1,12 @@
 // #![windows_subsystem = "windows"]
 
+pub mod app;
 mod config;
 mod backup;
 mod upload;
 mod cleanup;
 mod logging;
 
-use makepad_widgets::*;
 use anyhow::Result;
 use std::path::Path;
 use std::time::Duration;
@@ -26,78 +26,8 @@ fn early_init() {
     tracing::info!("Early init logging complete.");
 }
 
-live_design! {
-    import makepad_widgets::base::*;
-    import makepad_widgets::theme_desktop_dark::*;
-
-    App = {{App}} {
-        ui: <Window> {
-            show_bg: true,
-            width: Fit,
-            height: Fit,
-            body = <View> {
-                align: {x: 0.5, y: 0.5},
-                spacing: 20,
-                setup_button = <Button> { text: "Setup" }
-                log_button = <Button> { text: "View Logs" }
-                quit_button = <Button> { text: "Quit" }
-            }
-        }
-    }
-}
-
-app_main!(App);
-
-#[derive(Live, LiveHook)]
-pub struct App {
-    #[live]
-    ui: WidgetRef,
-}
-
-impl LiveRegister for App {
-    fn live_register(cx: &mut Cx) {
-        makepad_widgets::live_design(cx);
-    }
-}
-
-impl MatchEvent for App {
-    fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        if self.ui.button(id!(quit_button)).clicked(actions) {
-            cx.quit();
-        }
-        if self.ui.button(id!(setup_button)).clicked(actions) {
-            log!("Setup button clicked!");
-        }
-        if self.ui.button(id!(log_button)).clicked(actions) {
-            log!("Log button clicked!");
-        }
-    }
-}
-
-impl AppMain for App {
-    fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
-        tracing::info!("AppMain::handle_event received event: {:?}", event);
-        self.match_event(cx, event);
-        self.ui.handle_event(cx, event, &mut Scope::empty());
-
-        if let Event::Startup = event {
-            if Path::new("config.toml").exists() {
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    if let Err(e) = rt.block_on(run_app()) {
-                        tracing::error!("Backup thread failed: {}", e);
-                    }
-                });
-            } else {
-                log!("Config file not found. Please set up the application.");
-            }
-        }
-    }
-}
-
 fn main() {
-    // This is a dummy main function to satisfy the compiler.
-    // The actual entry point is the `app_main!` macro.
+    app::app_main();
 }
 
 fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
@@ -123,7 +53,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     guard
 }
 
-async fn run_app() -> Result<()> {
+pub async fn run_app() -> Result<()> {
     let config = config::load_config("config.toml")?;
     let cleanup_config_path = config.backup.temp_path.clone();
     tokio::spawn(async move {
@@ -140,7 +70,7 @@ async fn run_app() -> Result<()> {
     }
 }
 
-async fn run_backup_cycle(config: &config::Config) -> Result<()> {
+pub async fn run_backup_cycle(config: &config::Config) -> Result<()> {
     let start_time = OffsetDateTime::now_utc();
     let backup_filepath = match backup::perform_backup(config).await {
         Ok(path) => {

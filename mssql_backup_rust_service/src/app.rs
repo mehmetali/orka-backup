@@ -70,6 +70,5 @@ impl AppMain for App {
     }
 }
 
-pub fn app_main() {
-    app_main!(App);
-}
+app_main!(App);
+

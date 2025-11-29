@@ -105,11 +105,27 @@ impl LiveRegister for App {
         tracing::info!("Makepad live register started.");
         makepad_widgets::live_design(cx);
         live_design!{
-            tracing::info!("Makepad live register macro started.");
-            makepad_widgets::makepad_draw::shader::std::font_atlas::font_sdf;
-            makepad_widgets::makepad_draw::font_loader::Font;
-
-
+            THEME_FONT_REGULAR = {
+                font_family: {
+                    latin = {path: dep("IBMPlexSans-Text.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
+            }
+            THEME_FONT_BOLD = {
+                font_family:{
+                    latin = {path: dep("IBMPlexSans-SemiBold.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
+            }
+            THEME_FONT_ITALIC = {
+                font_family:{
+                    latin = {path: dep("IBMPlexSans-Italic.ttf")},
+                    chinese = {path: dep("LXGWWenKaiRegular.ttf")},
+                    emoji = {path: dep("NotoColorEmoji.ttf")},
+                }
+            }
         }
     }
 }

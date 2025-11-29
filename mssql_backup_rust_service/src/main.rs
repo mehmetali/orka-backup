@@ -11,28 +11,8 @@ use std::path::Path;
 use std::time::Duration;
 use ctor::ctor;
 use time::OffsetDateTime;
+use tracing_subscriber::prelude::*;
 
-#[cfg(windows)]
-#[ctor]
-fn set_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let msg = info.to_string();
-        let mut wide_msg: Vec<u16> = msg.encode_utf16().collect();
-        wide_msg.push(0);
-
-        let mut wide_title: Vec<u16> = "Panic!".encode_utf16().collect();
-        wide_title.push(0);
-
-        unsafe {
-            winapi::um::winuser::MessageBoxW(
-                std::ptr::null_mut(),
-                wide_msg.as_ptr(),
-                wide_title.as_ptr(),
-                0x10, // MB_ICONHAND
-            );
-        }
-    }));
-}
 
 live_design! {
     import makepad_widgets::base::*;
@@ -112,9 +92,22 @@ fn init_logging() -> Result<tracing_appender::non_blocking::WorkerGuard> {
     let log_path = logging::get_log_filepath();
     let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
     let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
+
     let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).with_ansi(false).init();
+    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
+
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout);
+
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(non_blocking_file)
+        .with_ansi(false);
+
+    tracing_subscriber::registry()
+        .with(console_layer)
+        .with(file_layer)
+        .init();
+
     Ok(guard)
 }
 

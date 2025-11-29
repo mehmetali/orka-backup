@@ -12,11 +12,11 @@ live_design! {
             width: Fit,
             height: Fit,
             body = <View> {
-                align = {x: 0.5, y: 0.5}
+                align: {x: 0.5, y: 0.5},
                 spacing: 20,
-                setup_button = <Button> { text: "Setup" },
-                log_button = <Button> { text: "View Logs" },
-                quit_button = <Button> { text: "Quit" }
+                setup_button: <Button> { text: "Setup" },
+                log_button: <Button> { text: "View Logs" },
+                quit_button: <Button> { text: "Quit" }
             }
         }
     }

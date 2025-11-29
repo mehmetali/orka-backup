@@ -84,6 +84,7 @@ impl LiveRegister for App {
         tracing::info!("Makepad live register started.");
         makepad_widgets::live_design(cx);
         live_design!{
+            tracing::info!("Makepad live register macro started.");
             makepad_widgets::makepad_draw::shader::std::font_atlas::font_sdf;
             makepad_widgets::makepad_draw::font_loader::Font;
 

@@ -1,11 +1,13 @@
 use makepad_widgets::*;
+use std::path::Path;
+use crate::run_app;
 
-live_design!{
+live_design! {
     import makepad_widgets::base::*;
     import makepad_widgets::theme_desktop_dark::*;
 
     App = {{App}} {
-        ui: <Window>{
+        ui: <Window> {
             show_bg: true,
             width: Fit,
             height: Fit,
@@ -20,11 +22,10 @@ live_design!{
     }
 }
 
-app_main!(App);
-
 #[derive(Live, LiveHook)]
 pub struct App {
-    #[live] ui: WidgetRef,
+    #[live]
+    ui: WidgetRef,
 }
 
 impl LiveRegister for App {
@@ -33,8 +34,8 @@ impl LiveRegister for App {
     }
 }
 
-impl MatchEvent for App{
-    fn handle_actions(&mut self, cx: &mut Cx, actions:&Actions){
+impl MatchEvent for App {
+    fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
         if self.ui.button(id!(quit_button)).clicked(actions) {
             cx.quit();
         }
@@ -49,7 +50,26 @@ impl MatchEvent for App{
 
 impl AppMain for App {
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
+        tracing::info!("Makepad event loop started.");
+        tracing::info!("AppMain::handle_event received event: {:?}", event);
         self.match_event(cx, event);
         self.ui.handle_event(cx, event, &mut Scope::empty());
+
+        if let Event::Startup = event {
+            if Path::new("config.toml").exists() {
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    if let Err(e) = rt.block_on(run_app()) {
+                        tracing::error!("Backup thread failed: {}", e);
+                    }
+                });
+            } else {
+                log!("Config file not found. Please set up the application.");
+            }
+        }
     }
+}
+
+pub fn app_main() {
+    app_main!(App);
 }

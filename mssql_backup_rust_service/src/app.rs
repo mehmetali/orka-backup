@@ -11,9 +11,9 @@ live_design! {
             main_window = <Window> {
                 window: {title: "Hello"},
                 body = <View> {
-                    <Button> { text: "Setup" }
-                    <Button> { text: "View Logs" }
-                    <Button> { text: "Quit" }
+                    setup_button = <Button> { text: "Setup" }
+                    log_button = <Button> { text: "View Logs" }
+                    quit_button = <Button> { text: "Quit" }
                 }
             }
         }

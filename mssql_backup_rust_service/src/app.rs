@@ -1,30 +1,7 @@
 use makepad_widgets::*;
 use std::path::Path;
 use crate::run_app;
-use std::path::PathBuf;
-use std::fs;
-use makepad_widgets::resource;
 
-// Makepad resource loader override: fontları exe'nin çalıştığı klasörden yükle
-#[cfg(target_os = "windows")]
-pub fn set_local_resource_loader() {
-
-
-    fn load_resource_local(resource_path: &str) -> Option<Vec<u8>> {
-        let exe_dir = std::env::current_exe().ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| PathBuf::from("."));
-        let local_path = exe_dir.join(resource_path);
-        fs::read(&local_path).ok()
-    }
-
-    resource::set_resource_loader(Box::new(load_resource_local));
-}
-pub fn app_main() {
-    #[cfg(target_os = "windows")]
-    set_local_resource_loader();
-    App;
-}
 live_design! {
     use link::theme::*;
     use link::shaders::*;
@@ -143,3 +120,6 @@ impl AppMain for App {
         }
     }
 }
+
+app_main!(App);
+

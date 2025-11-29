@@ -82,6 +82,30 @@ pub struct App {
 impl LiveRegister for App {
     fn live_register(cx: &mut Cx) {
         makepad_widgets::live_design(cx);
+        live_design!{
+            makepad_widgets::makepad_draw::shader::std::font_atlas::font_sdf;
+            makepad_widgets::makepad_draw::font_loader::Font;
+
+            REGULAR_FONT = {
+                path: dep("IBMPlexSans-Text.ttf")
+            }
+
+            BOLD_FONT = {
+                path: dep("IBMPlexSans-SemiBold.ttf")
+            }
+
+            ITALIC_FONT = {
+                path: dep("IBMPlexSans-Italic.ttf")
+            }
+
+            FONT_CHINESE = {
+                path: dep("LXGWWenKaiRegular.ttf")
+            }
+
+            FONT_EMOJI = {
+                path: dep("NotoColorEmoji.ttf")
+            }
+        }
     }
 }
 
@@ -122,4 +146,3 @@ impl AppMain for App {
 }
 
 app_main!(App);
-

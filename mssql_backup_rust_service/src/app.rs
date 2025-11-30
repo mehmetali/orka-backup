@@ -39,7 +39,7 @@ impl MatchEvent for App {
        //tracing::info!("AppMain::handle_event received event: {:?}", actions);
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            ::info!("AppMain::handle_event received event: {:?}", self.ui.button(&[id!(quit_button)]));
+            tracing::info!("AppMain::handle_event received event: {:?}", self.ui.button(&[id!(quit_button)]));
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

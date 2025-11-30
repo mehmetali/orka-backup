@@ -42,7 +42,7 @@ impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            window.minimize(cx);
+            //window.minimize(cx);
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");
@@ -81,10 +81,16 @@ impl AppMain for App {
         {
             let (sender, receiver) = std::sync::mpsc::channel();
             
-            let icon_data = vec![0, 0, 0, 0];
+            let width = 16;
+            let height = 16;
+            let mut icon_data = Vec::with_capacity((width * height * 4) as usize);
+            for _ in 0..(width * height) {
+                icon_data.extend_from_slice(&[255, 0, 0, 255]); // Red pixel (R, G, B, A)
+            }
+
             let mut tray = TrayItem::new(
                 "MSSQL Backup Service",
-                IconSource::Raw{data: icon_data, width: 1, height: 1}
+                IconSource::Raw{data: icon_data, width, height}
             ).expect("Failed to create tray item");
 
             tray.set_event_sender(sender);

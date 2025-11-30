@@ -78,7 +78,7 @@ impl AppMain for App {
         }
         #[cfg(target_os = "windows")]
         {
-            let (sender, receiver) = std::sync::mpsc::channel();
+            let (sender, receiver) = std::sync::mpsc::channel::<T>();
             
             let width = 16;
             let height = 16;

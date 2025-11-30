@@ -40,9 +40,10 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-            if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-            window.window(&[] as &[makepad_widgets::LiveId]).minimize(cx);
-        }
+            // minimize not available on current WindowRef API; log instead
+            if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                tracing::info!("Request to minimize main window (no-op on this build)");
+            }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");
         }
@@ -72,8 +73,8 @@ impl AppMain for App {
 
         if let Event::WindowCloseRequested(event) = event {
             if event.window_id == self.ui.window(&[id!(main_window)]).window_id() {
-                if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                    window.window(&[] as &[makepad_widgets::LiveId]).minimize(cx);
+                if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                    tracing::info!("WindowCloseRequested: would minimize to tray (no-op)");
                 }
             }
         }
@@ -112,8 +113,8 @@ impl AppMain for App {
                         if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
                                     match id.as_str() {
                                         "Show" => {
-                                            window.window(&[] as &[makepad_widgets::LiveId]).restore(cx);
-                                            window.window(&[] as &[makepad_widgets::LiveId]).focus(cx);
+                                            // restore/focus methods not present on WindowRef in this makepad version
+                                            tracing::info!("Tray 'Show' clicked: would restore and focus window (no-op)");
                                         },
                                 "Quit" => {
                                     cx.quit();

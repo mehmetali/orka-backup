@@ -1,6 +1,7 @@
 use makepad_widgets::*;
 use std::path::Path;
 use crate::run_app;
+use std::sync::mpsc;
 
 #[cfg(target_os = "windows")]
 use tray_item::{TrayItem, IconSource};

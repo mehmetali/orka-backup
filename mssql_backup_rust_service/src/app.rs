@@ -5,8 +5,6 @@ use std::sync::mpsc;
 
 #[cfg(target_os = "windows")]
 use tray_item::{TrayItem, IconSource};
-#[cfg(target_os = "windows")]
-use std::sync::mpsc::Receiver;
 
 live_design! {
     use link::theme::*;

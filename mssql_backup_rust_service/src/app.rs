@@ -36,10 +36,10 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        tracing::info!("AppMain::handle_event received event: {:?}", actions);
+       //tracing::info!("AppMain::handle_event received event: {:?}", actions);
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            self.ui.window(&[id!(main_window)]).close(cx);
+            ::info!("AppMain::handle_event received event: {:?}", self.ui.button(&[id!(quit_button)]));
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

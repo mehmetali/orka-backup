@@ -15,6 +15,11 @@ live_design! {
                     setup_button = <Button> { text: "Setup" }
                     log_button = <Button> { text: "View Logs" }
                     quit_button = <Button> { text: "Quit", button_type: WindowsClose }
+                min = <DesktopButton> {draw_bg: {button_type: WindowsMin}}
+                max = <DesktopButton> {draw_bg: {button_type: WindowsMax}}
+                close = <DesktopButton> {draw_bg: {button_type: WindowsClose}}
+
+
                 }
             }
         }

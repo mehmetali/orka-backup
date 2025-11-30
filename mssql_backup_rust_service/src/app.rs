@@ -30,12 +30,6 @@ live_design! {
 pub struct App {
     #[live]
     ui: WidgetRef,
-    #[cfg(target_os = "windows")]
-    #[rust]
-    tray_item: Option<TrayItem>,
-    #[cfg(target_os = "windows")]
-    #[rust]
-    tray_receiver: Option<Receiver<TrayEvent>>,
 }
 
 impl LiveRegister for App {

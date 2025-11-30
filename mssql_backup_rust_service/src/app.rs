@@ -36,7 +36,7 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        tracing::info!("AppMain::handle_event received event: {:?}", event);
+        tracing::info!("AppMain::handle_event received event: {:?}", actions);
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
             //self.ui.window(&[id!(main_window)]).minimize(cx);

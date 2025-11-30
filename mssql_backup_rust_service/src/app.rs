@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::run_app;
 
 #[cfg(target_os = "windows")]
-use tray_item::{TrayItem, IconSource, Menu, TrayEvent};
+use tray_item::{TrayItem, IconSource};
 #[cfg(target_os = "windows")]
 use std::sync::mpsc::Receiver;
 

@@ -29,4 +29,4 @@ tiberius = { version = "0.12", default-features = false, features = ["tds73", "s
 [target.'cfg(windows)'.dependencies]
 tiberius = { version = "0.12", default-features = false, features = ["tds73", "sql-browser-tokio", "winauth", "time"] }
 winapi = { version = "0.3", features = ["winuser"] }
-tray-item = "0.9.0"
+tray-item = "0.10.0"

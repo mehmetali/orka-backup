@@ -71,11 +71,10 @@ impl AppMain for App {
             }
         }
 
-        if let Event::WindowCloseRequested(event) = event {
-            if event.window_id == self.ui.window(&[id!(main_window)]).window_id() {
-                if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                    tracing::info!("WindowCloseRequested: would minimize to tray (no-op)");
-                }
+        if let Event::WindowCloseRequested(_event) = event {
+            // Can't access window_id on WindowRef in this makepad version; handle close by targeting main window directly
+            if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                tracing::info!("WindowCloseRequested: would minimize to tray (no-op)");
             }
         }
         #[cfg(target_os = "windows")]
@@ -100,8 +99,8 @@ impl AppMain for App {
             self.tray_item = Some(tray);
             self.tray_receiver = Some(receiver);
 
-            if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                window.window.minimize(cx);
+            if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                tracing::info!("Initialize tray: would minimize main window (no-op)");
             }
         }
 

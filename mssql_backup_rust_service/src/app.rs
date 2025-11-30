@@ -41,7 +41,7 @@ impl LiveRegister for App {
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
             if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                self.ui.window(&[id!(main_window)]).minimize(cx);
+                self.window().minimize(cx);
             }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

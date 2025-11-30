@@ -2,6 +2,11 @@ use makepad_widgets::*;
 use std::path::Path;
 use crate::run_app;
 
+#[cfg(target_os = "windows")]
+use tray_item::{TrayItem, IconSource, Menu, TrayEvent};
+#[cfg(target_os = "windows")]
+use std::sync::mpsc::Receiver;
+
 live_design! {
     use link::theme::*;
     use link::shaders::*;
@@ -9,7 +14,7 @@ live_design! {
     App = {{App}} {
         ui: <Root> {
             main_window = <Window> {
-                window: {title: "Hello"},
+                window: {title: "MSSQL Backup Service"},
                 body = <View> {
                     setup_button = <Button> { text: "Setup" }
                     log_button = <Button> { text: "View Logs" }
@@ -25,6 +30,12 @@ live_design! {
 pub struct App {
     #[live]
     ui: WidgetRef,
+    #[cfg(target_os = "windows")]
+    #[rust]
+    tray_item: Option<TrayItem>,
+    #[cfg(target_os = "windows")]
+    #[rust]
+    tray_receiver: Option<Receiver<TrayEvent>>,
 }
 
 impl LiveRegister for App {
@@ -35,8 +46,8 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            cx.quit();
+        if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+            window.window.minimize(cx);
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");
@@ -64,6 +75,63 @@ impl AppMain for App {
                 log!("Config file not found. Please set up the application.");
             }
         }
+
+        if let Event::WindowCloseRequested(event) = event {
+            if event.window_id == self.ui.window(&[id!(main_window)]).window_id() {
+                if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                    window.window.minimize(cx);
+                }
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            
+            let icon_data = vec![0, 0, 0, 0];
+            let mut tray = TrayItem::new(
+                "MSSQL Backup Service",
+                IconSource::Raw{data: icon_data, width: 1, height: 1}
+            ).expect("Failed to create tray item");
+
+            tray.set_event_sender(sender);
+            
+            let mut menu = Menu::new();
+            menu.add_item("Show", || {});
+            menu.add_separator();
+            menu.add_item("Quit", || {});
+            
+            tray.set_menu(&menu);
+            
+            self.tray_item = Some(tray);
+            self.tray_receiver = Some(receiver);
+
+            if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                window.window.minimize(cx);
+            }
+        }
+
+       #[cfg(target_os = "windows")]
+        if let Some(receiver) = &self.tray_receiver {
+            if let Ok(event) = receiver.try_recv() {
+                match event {
+                    TrayEvent::MenuItemClick { id, .. } => {
+                        if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+                            match id.as_str() {
+                                "Show" => {
+                                    window.window.restore(cx);
+                                    window.window.focus(cx);
+                                },
+                                "Quit" => {
+                                    cx.quit();
+                                },
+                                _ => {}
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
+    }
     }
 }
 

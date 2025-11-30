@@ -14,7 +14,7 @@ live_design! {
                 body = <View> {
                     setup_button = <Button> { text: "Setup" }
                     log_button = <Button> { text: "View Logs" }
-                    quit_button = <Button> { text: "Quit" }
+                    quit_button = <Button> { text: "Quit", button_type: WindowsClose }
                 }
             }
         }
@@ -38,7 +38,7 @@ impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            self.ui.window(&[id!(main_window)]).minimize(cx);
+            //self.ui.window(&[id!(main_window)]).minimize(cx);
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

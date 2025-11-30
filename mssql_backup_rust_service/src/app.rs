@@ -1,10 +1,7 @@
 use makepad_widgets::*;
 use std::path::Path;
 use crate::run_app;
-use std::sync::mpsc;
 
-#[cfg(target_os = "windows")]
-use tray_item::{TrayItem, IconSource};
 
 live_design! {
     use link::theme::*;
@@ -74,36 +71,6 @@ impl AppMain for App {
             // Can't access window_id on WindowRef in this makepad version; handle close by targeting main window directly
             if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
                 tracing::info!("WindowCloseRequested: would minimize to tray (no-op)");
-            }
-        }
-        #[cfg(target_os = "windows")]
-        {
-            let (sender, receiver) = std::sync::mpsc::channel::<T>();
-            
-            let width = 16;
-            let height = 16;
-            let mut icon_data = Vec::with_capacity((width * height * 4) as usize);
-            for _ in 0..(width * height) {
-                icon_data.extend_from_slice(&[255, 0, 0, 255]); // Red pixel (R, G, B, A)
-            }
-
-            let mut tray = TrayItem::new(
-                "MSSQL Backup Service",
-                IconSource::Resource("name-of-icon-in-rc-file"),
-            ).expect("Failed to create tray item");
-
-            let (tx, rx) = mpsc::sync_channel(1);
-            
-            tray.add_label("Tray Label").unwrap();
-            tray.add_menu_item("Hello", || {
-                println!("Hello!");
-            })
-            .unwrap();
-            
-        
-
-            if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                tracing::info!("Initialize tray: would minimize main window (no-op)");
             }
         }
 

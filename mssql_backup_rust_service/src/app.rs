@@ -36,6 +36,7 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
+        tracing::info!("AppMain::handle_event received event: {:?}", event);
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
             //self.ui.window(&[id!(main_window)]).minimize(cx);
@@ -64,13 +65,6 @@ impl AppMain for App {
                 });
             } else {
                 log!("Config file not found. Please set up the application.");
-            }
-        }
-
-        if let Event::WindowCloseRequested(_event) = event {
-            // Can't access window_id on WindowRef in this makepad version; handle close by targeting main window directly
-            if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                tracing::info!("WindowCloseRequested: would minimize to tray (no-op)");
             }
         }
 

@@ -93,45 +93,21 @@ impl AppMain for App {
                 IconSource::Resource("name-of-icon-in-rc-file"),
             ).expect("Failed to create tray item");
 
-            tray.set_event_sender(sender);
+            let (tx, rx) = mpsc::sync_channel(1);
             
-            let mut menu = Menu::new();
-            menu.add_item("Show", || {});
-            menu.add_separator();
-            menu.add_item("Quit", || {});
+            tray.add_label("Tray Label").unwrap();
+            tray.add_menu_item("Hello", || {
+                println!("Hello!");
+            })
+            .unwrap();
             
-            tray.set_menu(&menu);
-            
-            self.tray_item = Some(tray);
-            self.tray_receiver = Some(receiver);
+        
 
             if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
                 tracing::info!("Initialize tray: would minimize main window (no-op)");
             }
         }
 
-       #[cfg(target_os = "windows")]
-        if let Some(receiver) = &self.tray_receiver {
-            if let Ok(event) = receiver.try_recv() {
-                match event {
-                    TrayEvent::MenuItemClick { id, .. } => {
-                        if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                                    match id.as_str() {
-                                        "Show" => {
-                                            // restore/focus methods not present on WindowRef in this makepad version
-                                            tracing::info!("Tray 'Show' clicked: would restore and focus window (no-op)");
-                                        },
-                                "Quit" => {
-                                    cx.quit();
-                                },
-                                _ => {}
-                            }
-                        }
-                    },
-                    _ => {}
-                }
-            }
-    }
     }
 }
 

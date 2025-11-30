@@ -40,9 +40,8 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-            // minimize not available on current WindowRef API; log instead
             if let Some(_window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                tracing::info!("Request to minimize main window (no-op on this build)");
+                self.ui.window(&[id!(main_window)]).minimize(cx);
             }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

@@ -40,8 +40,8 @@ impl LiveRegister for App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-            window.minimize(cx);
+            if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
+            window.window().minimize(cx);
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");
@@ -73,7 +73,7 @@ impl AppMain for App {
         if let Event::WindowCloseRequested(event) = event {
             if event.window_id == self.ui.window(&[id!(main_window)]).window_id() {
                 if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                    window.window.minimize(cx);
+                    window.window().minimize(cx);
                 }
             }
         }
@@ -110,11 +110,11 @@ impl AppMain for App {
                 match event {
                     TrayEvent::MenuItemClick { id, .. } => {
                         if let Some(mut window) = self.ui.window(&[id!(main_window)]).borrow_mut() {
-                            match id.as_str() {
-                                "Show" => {
-                                    window.window.restore(cx);
-                                    window.window.focus(cx);
-                                },
+                                    match id.as_str() {
+                                        "Show" => {
+                                            window.window().restore(cx);
+                                            window.window().focus(cx);
+                                        },
                                 "Quit" => {
                                     cx.quit();
                                 },

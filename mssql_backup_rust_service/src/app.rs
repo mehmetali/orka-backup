@@ -90,7 +90,7 @@ impl AppMain for App {
 
             let mut tray = TrayItem::new(
                 "MSSQL Backup Service",
-                IconSource::Raw{data: icon_data, width, height}
+                IconSource::Resource("name-of-icon-in-rc-file"),
             ).expect("Failed to create tray item");
 
             tray.set_event_sender(sender);

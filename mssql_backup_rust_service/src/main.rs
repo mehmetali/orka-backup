@@ -103,8 +103,8 @@ impl Application for App {
 
 async fn run_app_wrapper() -> String {
     if let Err(e) = run_app().await {
-        let msg = format!("Backup thread failed: {}", e);
-        tracing::error!("{}", msg);
+        let msg = format!("Backup thread failed: {:?}", e);
+        tracing::error!("{:?}", e);
         return msg;
     }
     "Backup service finished.".to_string()
@@ -147,7 +147,7 @@ pub async fn run_app() -> Result<()> {
         tracing::info!("Starting backup cycle...");
         match run_backup_cycle(&config).await {
             Ok(_) => tracing::info!("Backup cycle completed successfully."),
-            Err(e) => tracing::error!("Backup cycle failed: {}", e),
+            Err(e) => tracing::error!("Backup cycle failed: {:?}", e),
         }
         tracing::info!("Waiting for 24 hours until the next cycle.");
         tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;

@@ -1,7 +1,18 @@
-// #![windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 
-use iced::{Alignment, Application, Command, Element, Length, Settings, Theme};
-use iced::widget::{button, column, container, row, scrollable, text, text_input};
+use iced::{
+    executor,
+    widget::{button, column, container, row, scrollable, text, text_input},
+    window, Alignment, Application, Command, Element, Length, Settings, Theme,
+};
+use std::{path::{Path, PathBuf}, thread, time::Duration, sync::{Arc, Mutex}, fs};
+use ctor::ctor;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use tracing_subscriber::{prelude::*, EnvFilter};
+use once_cell::sync::Lazy;
+use anyhow::Result;
+use tray_item::{TrayItem, IconSource};
+use single_instance::SingleInstance;
 
 mod config;
 mod backup;
@@ -10,13 +21,6 @@ mod cleanup;
 mod logging;
 mod styling;
 
-use anyhow::Result;
-use std::path::Path;
-use std::time::Duration;
-use ctor::ctor;
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use tracing_subscriber::{prelude::*, EnvFilter};
-use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone, serde::Deserialize)]
 struct BackupEntry {
@@ -64,21 +68,99 @@ async fn load_and_parse_logs() -> Result<Vec<LogEntry>, String> {
     Ok(entries)
 }
 
-// This static guard will be initialized once, ensuring the logging thread
-// stays alive for the duration of the application.
 static LOGGING_GUARD: Lazy<tracing_appender::non_blocking::WorkerGuard> = Lazy::new(init_logging);
 
 #[ctor]
 fn early_init() {
-    // Accessing the Lazy guard will initialize it.
     Lazy::force(&LOGGING_GUARD);
     tracing::info!("Early init logging complete.");
 }
 
-pub fn main() -> iced::Result {
-    App::run(Settings::default())
+fn get_show_file_path() -> PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push("mssql-backup-show-gui");
+    path
 }
 
+fn main() {
+    let instance = SingleInstance::new("mssql-backup-rust-service-unique-id").expect("Failed to create single instance");
+    if instance.is_single() {
+        // This is the first instance, run as service.
+        run_service();
+    } else {
+        // Another instance is already running, notify it to show the GUI.
+        if let Err(e) = fs::write(get_show_file_path(), "") {
+            tracing::error!("Failed to write show GUI signal file: {}", e);
+        }
+    }
+}
+
+fn run_service() {
+    let gui_thread_handle: Arc<Mutex<Option<thread::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
+
+    // Listen for show requests via file
+    let gui_handle_clone = Arc::clone(&gui_thread_handle);
+    thread::spawn(move || {
+        loop {
+            let path = get_show_file_path();
+            if path.exists() {
+                show_gui(Arc::clone(&gui_handle_clone));
+                if let Err(e) = fs::remove_file(path) {
+                    tracing::error!("Failed to remove show GUI signal file: {}", e);
+                }
+            }
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+
+    // Spawn the tray icon thread
+    let gui_handle_tray_clone = Arc::clone(&gui_thread_handle);
+    thread::spawn(move || {
+        let mut tray = TrayItem::new(
+            "MSSQL Backup Service",
+            IconSource::Resource("tray-default"),
+        ).expect("Failed to create tray item");
+
+        tray.add_label("MSSQL Backup Service").expect("Failed to add tray label");
+
+        let inner_gui_handle = gui_handle_tray_clone;
+        tray.add_menu_item("Show", move || {
+            show_gui(Arc::clone(&inner_gui_handle));
+        }).expect("Failed to add 'Show' menu item");
+
+        tray.add_menu_item("Quit", || {
+            std::process::exit(0);
+        }).expect("Failed to add 'Quit' menu item");
+    });
+
+    // Spawn the background backup task
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    runtime.spawn(async {
+        if let Err(e) = run_app().await {
+            tracing::error!("Background backup task failed: {:?}", e);
+        }
+    });
+
+    // Initially show the GUI
+    show_gui(Arc::clone(&gui_thread_handle));
+
+    // Keep the service alive
+    loop {
+        thread::sleep(Duration::from_secs(60));
+    }
+}
+
+fn show_gui(gui_thread_handle: Arc<Mutex<Option<thread::JoinHandle<()>>>>) {
+    let mut handle = gui_thread_handle.lock().expect("Failed to lock GUI thread handle");
+    if handle.is_none() || handle.as_ref().unwrap().is_finished() {
+        *handle = Some(thread::spawn(|| {
+            if let Err(e) = App::run(Settings::default()) {
+                tracing::error!("GUI thread failed: {:?}", e);
+            }
+        }));
+    }
+}
 enum ViewState {
     Main,
     Settings,
@@ -135,7 +217,7 @@ pub enum ConfigMessage {
 }
 
 impl Application for App {
-    type Executor = iced::executor::Default;
+    type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme;
     type Flags = ();
@@ -152,7 +234,7 @@ impl Application for App {
                         logs: vec![],
                         backups: vec![],
                     };
-                    (app, Command::perform(run_app_wrapper(), Message::StatusChanged))
+                    (app, Command::none()) // Background task is managed by the service now
                 }
                 Err(e) => {
                     let app = Self {
@@ -203,7 +285,8 @@ impl Application for App {
                 self.view_state = ViewState::Main;
             }
             Message::Quit => {
-                return Command::perform(async {}, |_| std::process::exit(0));
+                // This will close the window and the thread will exit.
+                return window::close(window::Id::MAIN);
             }
             Message::StatusChanged(new_status) => {
                 self.status = new_status;
@@ -214,7 +297,8 @@ impl Application for App {
                         self.status = "Config saved successfully.".to_string();
                         self.view_state = ViewState::Main;
                         self.original_config = Some(self.config.clone());
-                        return Command::perform(run_app_wrapper(), Message::StatusChanged);
+                        // We might need to signal the service to restart the backup loop
+                        // if config changes. For now, we just save and go to main.
                     }
                     Err(e) => {
                         self.status = format!("Error saving config: {}", e);
@@ -281,7 +365,7 @@ impl Application for App {
                 button("Setup").on_press(Message::Setup),
                 button("View Logs").on_press(Message::ViewLogs),
                 button("View Backups").on_press(Message::ViewBackups),
-                button("Quit").on_press(Message::Quit),
+                button("Close Window").on_press(Message::Quit),
             ]
             .padding(20)
             .spacing(10)
@@ -484,15 +568,6 @@ impl Application for App {
             }
         }
     }
-}
-
-async fn run_app_wrapper() -> String {
-    if let Err(e) = run_app().await {
-        let msg = format!("Backup thread failed: {:?}", e);
-        tracing::error!("{:?}", e);
-        return msg;
-    }
-    "Backup service finished.".to_string()
 }
 
 pub async fn run_app() -> Result<()> {

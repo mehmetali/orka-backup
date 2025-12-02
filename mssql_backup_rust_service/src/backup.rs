@@ -1,7 +1,7 @@
 use crate::config::Config;
 use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
-use tiberius::{AuthMethod, Client, Config as TiberiusConfig, EncryptionLevel, SqlBrowser};
+use tiberius::{AuthMethod, Client, Config as TiberiusConfig, SqlBrowser};
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use time::OffsetDateTime;
@@ -90,7 +90,6 @@ async fn create_mssql_client(
     } else {
         t_config.authentication(AuthMethod::Integrated);
     }
-    t_config.encryption(EncryptionLevel::Off); // Changed from Required to Off for local dev
     t_config.trust_cert(); // Use for development; configure properly for production
 
     let host = match &config.mssql.host {

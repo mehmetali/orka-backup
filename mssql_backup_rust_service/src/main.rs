@@ -1,7 +1,7 @@
 // #![windows_subsystem = "windows"]
 
 use iced::{Application, Command, Element, Settings, Theme};
-use iced::widget::{button, column, text, text_input};
+use iced::widget::{button, column, row, text, text_input};
 
 mod config;
 mod backup;
@@ -167,56 +167,72 @@ impl Application for App {
             ViewState::Settings => {
                 column![
                     text("Settings"),
-                    text_input(
-                        "Host",
-                        self.config.mssql.host.as_deref().unwrap_or(""),
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::HostChanged(s))),
-                    text_input(
-                        "Port",
-                        &self.config.mssql.port.map(|p| p.to_string()).unwrap_or_default(),
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::PortChanged(s))),
-                    text_input(
-                        "User",
-                        self.config.mssql.user.as_deref().unwrap_or(""),
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::UserChanged(s))),
-                    text_input(
-                        "Password",
-                        self.config.mssql.pass.as_deref().unwrap_or(""),
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::PassChanged(s))),
-                    text_input(
-                        "Database",
-                        &self.config.mssql.database,
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::DatabaseChanged(s))),
-                    text_input(
-                        "Instance Name",
-                        self.config.mssql.instance_name.as_deref().unwrap_or(""),
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::InstanceNameChanged(s))),
-                    text_input(
-                        "API URL",
-                        &self.config.api.url,
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::ApiUrlChanged(s))),
-                    text_input(
-                        "Server Token",
-                        &self.config.api.server_token,
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::ServerTokenChanged(s))),
-                    text_input(
-                        "Auth Token",
-                        &self.config.api.auth_token,
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::AuthTokenChanged(s))),
-                    text_input(
-                        "Temp Path",
-                        &self.config.backup.temp_path,
-                    )
-                    .on_input(|s| Message::Config(ConfigMessage::TempPathChanged(s))),
+                    row![
+                        text("Host:"),
+                        text_input("", self.config.mssql.host.as_deref().unwrap_or(""))
+                            .on_input(|s| Message::Config(ConfigMessage::HostChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Port:"),
+                        text_input(
+                            "",
+                            &self.config.mssql.port.map(|p| p.to_string()).unwrap_or_default()
+                        )
+                        .on_input(|s| Message::Config(ConfigMessage::PortChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("User:"),
+                        text_input("", self.config.mssql.user.as_deref().unwrap_or(""))
+                            .on_input(|s| Message::Config(ConfigMessage::UserChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Password:"),
+                        text_input("", self.config.mssql.pass.as_deref().unwrap_or(""))
+                            .on_input(|s| Message::Config(ConfigMessage::PassChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Database:"),
+                        text_input("", &self.config.mssql.database)
+                            .on_input(|s| Message::Config(ConfigMessage::DatabaseChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Instance Name:"),
+                        text_input(
+                            "",
+                            self.config.mssql.instance_name.as_deref().unwrap_or("")
+                        )
+                        .on_input(|s| Message::Config(ConfigMessage::InstanceNameChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("API URL:"),
+                        text_input("", &self.config.api.url)
+                            .on_input(|s| Message::Config(ConfigMessage::ApiUrlChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Server Token:"),
+                        text_input("", &self.config.api.server_token)
+                            .on_input(|s| Message::Config(ConfigMessage::ServerTokenChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Auth Token:"),
+                        text_input("", &self.config.api.auth_token)
+                            .on_input(|s| Message::Config(ConfigMessage::AuthTokenChanged(s)))
+                    ]
+                    .spacing(5),
+                    row![
+                        text("Temp Path:"),
+                        text_input("", &self.config.backup.temp_path)
+                            .on_input(|s| Message::Config(ConfigMessage::TempPathChanged(s)))
+                    ]
+                    .spacing(5),
                     button("Save").on_press(Message::SaveConfig),
                 ]
                 .padding(20)

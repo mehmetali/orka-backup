@@ -1,5 +1,5 @@
 use crate::config::Config;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use std::path::{Path, PathBuf};
 use tiberius::{AuthMethod, Client, Config as TiberiusConfig, EncryptionLevel, SqlBrowser};
 use tokio::net::TcpStream;
@@ -19,32 +19,62 @@ pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
 
     std::fs::create_dir_all(&config.backup.temp_path)?;
 
-    let mut client = create_mssql_client(config).await.context("Failed to create MSSQL client")?;
+    let mut client = create_mssql_client(config).await.map_err(|e| {
+        tracing::error!("Failed to create MSSQL client: {:?}", e);
+        e
+    })?;
+
+    let backup_path_str = match backup_filepath.to_str() {
+        Some(s) => s,
+        None => {
+            let err_msg = format!("Invalid backup path (contains non-UTF8 characters): {:?}", backup_filepath);
+            tracing::error!("{}", err_msg);
+            bail!(err_msg);
+        }
+    };
 
     let backup_command = format!(
         "BACKUP DATABASE [{}] TO DISK = N'{}' WITH NOFORMAT, NOINIT, NAME = N'{}-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10",
         config.mssql.database,
-        backup_filepath.to_str().context("Invalid backup path")?,
+        backup_path_str,
         config.mssql.database
     );
 
     tracing::info!("Starting backup...");
-    client.execute(backup_command, &[]).await.context("Backup command failed")?;
+    client.execute(backup_command, &[]).await.map_err(|e| {
+        tracing::error!("Backup command failed: {:?}", e);
+        e
+    })?;
     tracing::info!("Backup command executed.");
 
     Ok(backup_filepath)
 }
 
 pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
-    let mut client = create_mssql_client(config).await.context("Failed to create MSSQL client for verification")?;
+    let mut client = create_mssql_client(config).await.map_err(|e| {
+        tracing::error!("Failed to create MSSQL client for verification: {:?}", e);
+        e
+    })?;
+
+    let backup_path_str = match backup_path.to_str() {
+        Some(s) => s,
+        None => {
+            let err_msg = format!("Invalid backup path (contains non-UTF8 characters): {:?}", backup_path);
+            tracing::error!("{}", err_msg);
+            bail!(err_msg);
+        }
+    };
 
     let verify_command = format!(
         "RESTORE VERIFYONLY FROM DISK = N'{}'",
-        backup_path.to_str().context("Invalid backup path")?
+        backup_path_str
     );
 
     tracing::info!("Verifying backup...");
-    client.execute(verify_command, &[]).await.context("Backup verification failed")?;
+    client.execute(verify_command, &[]).await.map_err(|e| {
+        tracing::error!("Backup verification failed: {:?}", e);
+        e
+    })?;
     tracing::info!("Backup verified successfully.");
 
     Ok(())
@@ -69,24 +99,27 @@ async fn create_mssql_client(
     };
     t_config.host(&host);
 
-    // If a port is specified, attempt a direct connection using it.
-    // `connect_named` handles this case correctly when no instance_name is set.
     if let Some(port) = config.mssql.port {
         t_config.port(port);
         tracing::info!("Attempting direct connection to {}:{}", host, port);
 
         let tcp = TcpStream::connect_named(&t_config).await
-            .with_context(|| format!("Failed to connect to {}:{}", host, port))?;
+            .map_err(|e| {
+                tracing::error!("Failed to connect to {}:{}: {:?}", host, port, e);
+                e
+            })?;
 
         tcp.set_nodelay(true)?;
         let client = Client::connect(t_config, tcp.compat()).await
-            .with_context(|| format!("Failed to establish client connection to {}:{}", host, port))?;
+            .map_err(|e| {
+                tracing::error!("Failed to establish client connection to {}:{}: {:?}", host, port, e);
+                e
+            })?;
 
         tracing::info!("Direct connection successful.");
         return Ok(client);
     }
 
-    // If no port is specified, try to connect using instance names.
     let instances_to_try: Vec<String> = match &config.mssql.instance_name {
         Some(name) => vec![name.clone()],
         None => vec!["MSSQLSERVER".to_string(), "SQLEXPRESS".to_string()],
@@ -105,7 +138,10 @@ async fn create_mssql_client(
             Ok(tcp) => {
                 tcp.set_nodelay(true)?;
                 let client = Client::connect(conn_config, tcp.compat()).await
-                    .with_context(|| format!("Failed to establish client connection to instance '{}'", instance))?;
+                    .map_err(|e| {
+                        tracing::error!("Failed to establish client connection to instance '{}': {:?}", instance, e);
+                        e
+                    })?;
 
                 tracing::info!("Successfully connected to instance '{}' on host '{}'", instance, host);
                 return Ok(client);
@@ -117,5 +153,7 @@ async fn create_mssql_client(
         }
     }
 
-    bail!("Could not connect to any MSSQL instance on host '{}'", host)
+    let err_msg = format!("Could not connect to any MSSQL instance on host '{}'", host);
+    tracing::error!("{}", err_msg);
+    bail!(err_msg)
 }

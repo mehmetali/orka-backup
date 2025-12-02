@@ -14,7 +14,7 @@ use std::path::Path;
 use std::time::Duration;
 use ctor::ctor;
 use time::OffsetDateTime;
-use tracing_subscriber::prelude::*;
+use tracing_subscriber::{prelude::*, EnvFilter};
 use once_cell::sync::Lazy;
 
 // This static guard will be initialized once, ensuring the logging thread
@@ -126,7 +126,10 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
         .with_writer(non_blocking_file)
         .with_ansi(false);
 
+    let filter = EnvFilter::new("mssql_backup_rust_service=info,iced=off");
+
     tracing_subscriber::registry()
+        .with(filter)
         .with(console_layer)
         .with(file_layer)
         .init();

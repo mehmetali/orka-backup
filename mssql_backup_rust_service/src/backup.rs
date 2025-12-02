@@ -8,6 +8,7 @@ use time::OffsetDateTime;
 use time::macros::format_description;
 
 pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
+    tracing::info!("Starting perform backup");
     let format = format_description!("[year][month][day]_[hour][minute][second]");
     let backup_filename = format!(
         "{}_{}.bak",
@@ -18,7 +19,7 @@ pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
 
     std::fs::create_dir_all(&config.backup.temp_path)?;
 
-    let mut client = create_mssql_client(config).await?;
+    let mut client = create_mssql_client(config).await.context("Failed to create MSSQL client")?;
 
     let backup_command = format!(
         "BACKUP DATABASE [{}] TO DISK = N'{}' WITH NOFORMAT, NOINIT, NAME = N'{}-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10",
@@ -28,14 +29,14 @@ pub async fn perform_backup(config: &Config) -> Result<PathBuf> {
     );
 
     tracing::info!("Starting backup...");
-    client.execute(backup_command, &[]).await?;
+    client.execute(backup_command, &[]).await.context("Backup command failed")?;
     tracing::info!("Backup command executed.");
 
     Ok(backup_filepath)
 }
 
 pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
-    let mut client = create_mssql_client(config).await?;
+    let mut client = create_mssql_client(config).await.context("Failed to create MSSQL client for verification")?;
 
     let verify_command = format!(
         "RESTORE VERIFYONLY FROM DISK = N'{}'",
@@ -43,7 +44,7 @@ pub async fn verify_backup(config: &Config, backup_path: &Path) -> Result<()> {
     );
 
     tracing::info!("Verifying backup...");
-    client.execute(verify_command, &[]).await?;
+    client.execute(verify_command, &[]).await.context("Backup verification failed")?;
     tracing::info!("Backup verified successfully.");
 
     Ok(())
@@ -62,25 +63,30 @@ async fn create_mssql_client(
     t_config.encryption(EncryptionLevel::Required);
     t_config.trust_cert(); // Use for development; configure properly for production
 
-    // Scenario 1: Direct connection with host and port
-    if let (Some(host), Some(port)) = (&config.mssql.host, config.mssql.port) {
-        tracing::info!("Attempting direct connection to {}:{}", host, port);
-        t_config.host(host);
-        t_config.port(port);
-        let tcp = TcpStream::connect(t_config.get_addr()).await?;
-        tcp.set_nodelay(true)?;
-        let client = Client::connect(t_config, tcp.compat()).await?;
-        tracing::info!("Direct connection successful.");
-        return Ok(client);
-    }
-
-    // Scenario 2: Connection with instance name lookup
     let host = match &config.mssql.host {
         Some(h) => h.clone(),
         None => hostname::get()?.to_string_lossy().into_owned(),
     };
     t_config.host(&host);
 
+    // If a port is specified, attempt a direct connection using it.
+    // `connect_named` handles this case correctly when no instance_name is set.
+    if let Some(port) = config.mssql.port {
+        t_config.port(port);
+        tracing::info!("Attempting direct connection to {}:{}", host, port);
+
+        let tcp = TcpStream::connect_named(&t_config).await
+            .with_context(|| format!("Failed to connect to {}:{}", host, port))?;
+
+        tcp.set_nodelay(true)?;
+        let client = Client::connect(t_config, tcp.compat()).await
+            .with_context(|| format!("Failed to establish client connection to {}:{}", host, port))?;
+
+        tracing::info!("Direct connection successful.");
+        return Ok(client);
+    }
+
+    // If no port is specified, try to connect using instance names.
     let instances_to_try: Vec<String> = match &config.mssql.instance_name {
         Some(name) => vec![name.clone()],
         None => vec!["MSSQLSERVER".to_string(), "SQLEXPRESS".to_string()],
@@ -88,31 +94,24 @@ async fn create_mssql_client(
 
     for instance in instances_to_try {
         let mut conn_config = t_config.clone();
+        conn_config.instance_name(&instance);
         tracing::info!(
             "Attempting to connect to instance '{}' on host '{}'",
             instance,
             host
         );
-        conn_config.instance_name(&instance);
 
         match TcpStream::connect_named(&conn_config).await {
             Ok(tcp) => {
                 tcp.set_nodelay(true)?;
-                let client = Client::connect(conn_config, tcp.compat()).await?;
-                tracing::info!(
-                    "Successfully connected to instance '{}' on host '{}'",
-                    instance,
-                    host
-                );
+                let client = Client::connect(conn_config, tcp.compat()).await
+                    .with_context(|| format!("Failed to establish client connection to instance '{}'", instance))?;
+
+                tracing::info!("Successfully connected to instance '{}' on host '{}'", instance, host);
                 return Ok(client);
             }
             Err(e) => {
-                tracing::warn!(
-                    "Failed to connect to instance '{}' on host '{}': {}",
-                    instance,
-                    host,
-                    e
-                );
+                tracing::warn!("Failed to connect to instance '{}' on host '{}': {}", instance, host, e);
                 continue;
             }
         }

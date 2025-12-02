@@ -563,7 +563,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
 
 async fn fetch_backups(config: config::Config) -> Result<Vec<BackupEntry>, String> {
     let client = reqwest::Client::new();
-    let url = format!("{}/api/backups", config.api.url);
+    let url = format!("{}/api/backups", config.api.url.trim_end_matches('/'));
     let response = client
         .get(&url)
         .bearer_auth(&config.api.auth_token)
@@ -589,7 +589,11 @@ struct DownloadUrl {
 
 async fn request_download_link(config: config::Config, backup_id: u64) -> Result<String, String> {
     let client = reqwest::Client::new();
-    let url = format!("{}/api/backups/{}/download", config.api.url, backup_id);
+    let url = format!(
+        "{}/api/backups/{}/download",
+        config.api.url.trim_end_matches('/'),
+        backup_id
+    );
     let response = client
         .get(&url)
         .bearer_auth(&config.api.auth_token)

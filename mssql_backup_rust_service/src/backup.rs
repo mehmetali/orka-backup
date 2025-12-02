@@ -3,7 +3,7 @@ use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
 use tiberius::{AuthMethod, Client, Config as TiberiusConfig, EncryptionLevel, SqlBrowser};
 use tokio::net::TcpStream;
-use tokio_util::compat::TokioAsyncWriteCompatExt;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 use time::OffsetDateTime;
 use time::macros::format_description;
 
@@ -69,7 +69,7 @@ async fn create_mssql_client(
         t_config.port(port);
         let tcp = TcpStream::connect(t_config.get_addr()).await?;
         tcp.set_nodelay(true)?;
-        let client = Client::connect(t_config, tcp.compat_write()).await?;
+        let client = Client::connect(t_config, tcp.compat()).await?;
         tracing::info!("Direct connection successful.");
         return Ok(client);
     }
@@ -98,7 +98,7 @@ async fn create_mssql_client(
         match TcpStream::connect_named(&conn_config).await {
             Ok(tcp) => {
                 tcp.set_nodelay(true)?;
-                let client = Client::connect(conn_config, tcp.compat_write()).await?;
+                let client = Client::connect(conn_config, tcp.compat()).await?;
                 tracing::info!(
                     "Successfully connected to instance '{}' on host '{}'",
                     instance,

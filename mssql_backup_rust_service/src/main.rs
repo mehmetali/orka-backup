@@ -1,7 +1,7 @@
 // #![windows_subsystem = "windows"]
 
 use iced::{Application, Command, Element, Length, Settings, Theme};
-use iced::widget::{button, column, row, text, text_input};
+use iced::widget::{button, column, row, scrollable, text, text_input};
 
 mod config;
 mod backup;
@@ -13,9 +13,44 @@ use anyhow::Result;
 use std::path::Path;
 use std::time::Duration;
 use ctor::ctor;
-use time::OffsetDateTime;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing_subscriber::{prelude::*, EnvFilter};
 use once_cell::sync::Lazy;
+
+async fn load_and_parse_logs() -> Result<Vec<LogEntry>, String> {
+    let log_path = logging::get_log_filepath();
+    let content = tokio::fs::read_to_string(log_path)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut entries = Vec::new();
+    for line in content.lines() {
+        let parts: Vec<&str> = line.splitn(4, ' ').collect();
+        if parts.len() >= 4 {
+            let timestamp_utc_str = parts[0];
+            let level = parts[2].to_string();
+            let rest = parts[3];
+
+            let module_end = rest.find(':').unwrap_or(0);
+            let module = rest[..module_end].to_string();
+            let message = rest[module_end + 1..].trim().to_string();
+
+            let timestamp_utc =
+                OffsetDateTime::parse(timestamp_utc_str, &Rfc3339).map_err(|e| e.to_string())?;
+            let local_offset =
+                time::UtcOffset::current_local_offset().map_err(|e| e.to_string())?;
+            let timestamp_local = timestamp_utc.to_offset(local_offset);
+
+            entries.push(LogEntry {
+                timestamp: timestamp_local.to_string(),
+                level,
+                module,
+                message,
+            });
+        }
+    }
+    Ok(entries)
+}
 
 // This static guard will be initialized once, ensuring the logging thread
 // stays alive for the duration of the application.
@@ -35,6 +70,15 @@ pub fn main() -> iced::Result {
 enum ViewState {
     Main,
     Settings,
+    Logs,
+}
+
+#[derive(Debug, Clone)]
+struct LogEntry {
+    timestamp: String,
+    level: String,
+    module: String,
+    message: String,
 }
 
 struct App {
@@ -42,12 +86,15 @@ struct App {
     view_state: ViewState,
     config: config::Config,
     original_config: Option<config::Config>,
+    logs: Vec<LogEntry>,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Setup,
     ViewLogs,
+    LogsLoaded(Result<Vec<LogEntry>, String>),
+    BackToMain,
     Quit,
     StatusChanged(String),
     SaveConfig,
@@ -84,6 +131,7 @@ impl Application for App {
                         view_state: ViewState::Main,
                         original_config: Some(config.clone()),
                         config,
+                        logs: vec![],
                     };
                     (app, Command::perform(run_app_wrapper(), Message::StatusChanged))
                 }
@@ -93,6 +141,7 @@ impl Application for App {
                         view_state: ViewState::Settings,
                         config: config::Config::default(),
                         original_config: None,
+                        logs: vec![],
                     };
                     (app, Command::none())
                 }
@@ -103,6 +152,7 @@ impl Application for App {
                 view_state: ViewState::Settings,
                 config: config::Config::default(),
                 original_config: None,
+                logs: vec![],
             };
             (app, Command::none())
         }
@@ -119,7 +169,17 @@ impl Application for App {
                 self.view_state = ViewState::Settings;
             }
             Message::ViewLogs => {
-                println!("View Logs button clicked!");
+                return Command::perform(load_and_parse_logs(), Message::LogsLoaded);
+            }
+            Message::LogsLoaded(Ok(logs)) => {
+                self.logs = logs;
+                self.view_state = ViewState::Logs;
+            }
+            Message::LogsLoaded(Err(e)) => {
+                self.status = format!("Error loading logs: {}", e);
+            }
+            Message::BackToMain => {
+                self.view_state = ViewState::Main;
             }
             Message::Quit => {
                 return Command::perform(async {}, |_| std::process::exit(0));
@@ -169,12 +229,39 @@ impl Application for App {
 
     fn view(&self) -> Element<'_, Message> {
         match self.view_state {
-            ViewState::Main => {
+            ViewState::Main => column![
+                text(&self.status),
+                button("Setup").on_press(Message::Setup),
+                button("View Logs").on_press(Message::ViewLogs),
+                button("Quit").on_press(Message::Quit),
+            ]
+            .padding(20)
+            .spacing(10)
+            .into(),
+            ViewState::Logs => {
+                let header = row![]
+                    .push(text("Timestamp").width(Length::Fixed(250.0)))
+                    .push(text("Level").width(Length::Fixed(80.0)))
+                    .push(text("Module").width(Length::Fixed(200.0)))
+                    .push(text("Message").width(Length::Fill))
+                    .spacing(10);
+
+                let log_rows = self.logs.iter().fold(column![].spacing(5), |col, entry| {
+                    col.push(
+                        row![]
+                            .push(text(&entry.timestamp).width(Length::Fixed(250.0)))
+                            .push(text(&entry.level).width(Length::Fixed(80.0)))
+                            .push(text(&entry.module).width(Length::Fixed(200.0)))
+                            .push(text(&entry.message).width(Length::Fill))
+                            .spacing(10),
+                    )
+                });
+
                 column![
-                    text(&self.status),
-                    button("Setup").on_press(Message::Setup),
-                    button("View Logs").on_press(Message::ViewLogs),
-                    button("Quit").on_press(Message::Quit),
+                    text("Logs").size(24),
+                    header,
+                    scrollable(log_rows),
+                    button("Back").on_press(Message::BackToMain),
                 ]
                 .padding(20)
                 .spacing(10)
@@ -275,34 +362,6 @@ async fn run_app_wrapper() -> String {
     "Backup service finished.".to_string()
 }
 
-
-fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
-    let log_path = logging::get_log_filepath();
-    let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
-    let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
-
-    let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
-    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
-
-    let console_layer = tracing_subscriber::fmt::layer()
-        .with_ansi(false)
-        .with_writer(std::io::stdout);
-
-    let file_layer = tracing_subscriber::fmt::layer()
-        .with_writer(non_blocking_file)
-        .with_ansi(false);
-
-    let filter = EnvFilter::new("mssql_backup_rust_service=info,iced=off");
-
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(console_layer)
-        .with(file_layer)
-        .init();
-
-    guard
-}
-
 pub async fn run_app() -> Result<()> {
     let config = config::load_config("config.toml")?;
     let cleanup_config_path = config.backup.temp_path.clone();
@@ -350,4 +409,31 @@ pub async fn run_backup_cycle(config: &config::Config) -> Result<()> {
         tracing::info!("Local backup file {:?} deleted.", backup_filepath);
     }
     Ok(())
+}
+
+fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
+    let log_path = logging::get_log_filepath();
+    let log_dir = log_path.parent().unwrap_or_else(|| Path::new("."));
+    let log_filename = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("service.log"));
+
+    let file_appender = tracing_appender::rolling::never(log_dir, log_filename);
+    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
+
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .with_writer(std::io::stdout);
+
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(non_blocking_file)
+        .with_ansi(false);
+
+    let filter = EnvFilter::new("mssql_backup_rust_service=info,iced=off");
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(console_layer)
+        .with(file_layer)
+        .init();
+
+    guard
 }

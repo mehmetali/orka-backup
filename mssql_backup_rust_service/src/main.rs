@@ -336,12 +336,17 @@ impl Application for App {
             }
             ViewState::Backups => {
                 let header = row![]
-                    .push(text("ID").width(Length::Fixed(50.0)))
-                    .push(text("DB Name").width(Length::Fixed(150.0)))
-                    .push(text("Status").width(Length::Fixed(100.0)))
-                    .push(text("Completed At").width(Length::Fixed(250.0)))
-                    .push(text("Download").width(Length::Fill))
-                    .spacing(10);
+                    .push(text("ID").width(Length::FillPortion(1)))
+                    .push(text("DB Name").width(Length::FillPortion(4)))
+                    .push(text("Status").width(Length::FillPortion(2)))
+                    .push(text("Completed At").width(Length::FillPortion(4)))
+                    .push(
+                        container(text("Download"))
+                            .width(Length::FillPortion(2))
+                            .center_x(),
+                    )
+                    .spacing(10)
+                    .align_items(Alignment::Center);
 
                 let backup_rows = self
                     .backups
@@ -357,18 +362,23 @@ impl Application for App {
                         col.push(
                             container(
                                 row![]
-                                    .push(text(entry.id.to_string()).width(Length::Fixed(50.0)))
-                                    .push(text(&entry.db_name).width(Length::Fixed(150.0)))
-                                    .push(text(&entry.status).width(Length::Fixed(100.0)))
+                                    .push(text(entry.id.to_string()).width(Length::FillPortion(1)))
+                                    .push(text(&entry.db_name).width(Length::FillPortion(4)))
+                                    .push(text(&entry.status).width(Length::FillPortion(2)))
                                     .push(
                                         text(&entry.backup_completed_at)
-                                            .width(Length::Fixed(250.0)),
+                                            .width(Length::FillPortion(4)),
                                     )
                                     .push(
-                                        button("Download")
-                                            .on_press(Message::DownloadBackup(entry.id)),
+                                        container(
+                                            button("Download")
+                                                .on_press(Message::DownloadBackup(entry.id)),
+                                        )
+                                        .width(Length::FillPortion(2))
+                                        .center_x(),
                                     )
-                                    .spacing(10),
+                                    .spacing(10)
+                                    .align_items(Alignment::Center),
                             )
                             .style(style),
                         )

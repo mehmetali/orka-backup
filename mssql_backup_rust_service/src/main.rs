@@ -1,6 +1,6 @@
 // #![windows_subsystem = "windows"]
 
-use iced::{Application, Command, Element, Length, Settings, Theme};
+use iced::{Alignment, Application, Command, Element, Length, Settings, Theme};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 
 mod config;
@@ -271,12 +271,18 @@ impl Application for App {
                         )
                     });
 
-                column![
+                let title_row = row![
                     text("Logs").size(24),
-                    header,
-                    scrollable(log_rows),
-                    button("Back").on_press(Message::BackToMain),
+                    row![]
+                        .width(Length::Fill)
+                        .align_items(Alignment::End)
+                        .spacing(10)
+                        .push(button("Back").on_press(Message::BackToMain))
                 ]
+                .align_items(Alignment::Center)
+                .spacing(20);
+
+                column![title_row, header, scrollable(log_rows)]
                 .padding(20)
                 .spacing(10)
                 .into()

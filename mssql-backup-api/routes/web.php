@@ -7,6 +7,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::middleware(['auth'])->group(function () {
-    Route::get('/backups/{backup}/download', [BackupController::class, 'download'])->name('backups.download');
-});
+Route::get('/backups/{backup}/stream', [BackupController::class, 'streamBackup'])
+    ->name('backups.stream')
+    ->middleware('signed');

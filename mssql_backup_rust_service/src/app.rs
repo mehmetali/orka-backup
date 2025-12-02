@@ -9,17 +9,17 @@ live_design! {
     use link::widgets::*;
     App = {{App}} {
         ui: <Root> {
+            height: 100,
+            width: 200,
             main_window = <Window> {
-                window: {title: "MSSQL Backup Service"},
+                window: {
+                    title: "MSSQL Backup Service"
+                },
                 body = <View> {
+
                     setup_button = <Button> { text: "Setup" }
                     log_button = <Button> { text: "View Logs" }
-                    quit_button = <Button> { text: "Quit", button_type: WindowsClose }
-                min = <DesktopButton> {draw_bg: {button_type: WindowsMin}}
-                max = <DesktopButton> {draw_bg: {button_type: WindowsMax}}
-                close = <DesktopButton> {draw_bg: {button_type: WindowsClose}}
-
-
+                    quit_button = <Button> { text: "Quit" }
                 }
             }
         }
@@ -44,7 +44,7 @@ impl MatchEvent for App {
        //tracing::info!("AppMain::handle_event received event: {:?}", actions);
        let window = self.ui.window(&[id!(main_window)]);
         if self.ui.button(&[id!(quit_button)]).clicked(actions) {
-            cx.quit();
+            self.ui.window(&[id!(main_window)]).set_visible(cx, false);
         }
         if self.ui.button(&[id!(setup_button)]).clicked(actions) {
             log!("Setup button clicked!");

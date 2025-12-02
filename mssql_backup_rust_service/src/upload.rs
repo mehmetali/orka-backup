@@ -44,7 +44,8 @@ pub async fn upload_backup(config: &Config, meta: BackupMeta) -> Result<()> {
             .text("checksum_sha256", checksum.clone())
             .part("backup_file", file_part);
 
-        let response_result = client.post(&config.api.url)
+        let upload_url = format!("{}/api/backups/upload", config.api.url);
+        let response_result = client.post(&upload_url)
             .bearer_auth(&config.api.auth_token)
             .header("Accept", "application/json")
             .multipart(form)

@@ -18,6 +18,17 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing_subscriber::{prelude::*, EnvFilter};
 use once_cell::sync::Lazy;
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct BackupEntry {
+    id: u64,
+    db_name: String,
+    file_path: String,
+    file_size_bytes: u64,
+    backup_started_at: String,
+    backup_completed_at: String,
+    status: String,
+}
+
 async fn load_and_parse_logs() -> Result<Vec<LogEntry>, String> {
     let log_path = logging::get_log_filepath();
     let content = tokio::fs::read_to_string(log_path)
@@ -72,6 +83,7 @@ enum ViewState {
     Main,
     Settings,
     Logs,
+    Backups,
 }
 
 #[derive(Debug, Clone)]
@@ -88,6 +100,7 @@ struct App {
     config: config::Config,
     original_config: Option<config::Config>,
     logs: Vec<LogEntry>,
+    backups: Vec<BackupEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +114,10 @@ enum Message {
     SaveConfig,
     Config(ConfigMessage),
     Cancel,
+    ViewBackups,
+    BackupsLoaded(Result<Vec<BackupEntry>, String>),
+    DownloadBackup(u64),
+    OpenUrl(String),
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +150,7 @@ impl Application for App {
                         original_config: Some(config.clone()),
                         config,
                         logs: vec![],
+                        backups: vec![],
                     };
                     (app, Command::perform(run_app_wrapper(), Message::StatusChanged))
                 }
@@ -143,6 +161,7 @@ impl Application for App {
                         config: config::Config::default(),
                         original_config: None,
                         logs: vec![],
+                        backups: vec![],
                     };
                     (app, Command::none())
                 }
@@ -154,6 +173,7 @@ impl Application for App {
                 config: config::Config::default(),
                 original_config: None,
                 logs: vec![],
+                backups: vec![],
             };
             (app, Command::none())
         }
@@ -224,6 +244,32 @@ impl Application for App {
                 self.view_state = ViewState::Main;
                 self.status = "Editing cancelled.".to_string();
             }
+            Message::ViewBackups => {
+                self.view_state = ViewState::Backups;
+                let config = self.config.clone();
+                return Command::perform(fetch_backups(config), Message::BackupsLoaded);
+            }
+            Message::BackupsLoaded(Ok(backups)) => {
+                self.backups = backups;
+            }
+            Message::BackupsLoaded(Err(e)) => {
+                self.status = format!("Error loading backups: {}", e);
+            }
+            Message::DownloadBackup(backup_id) => {
+                let config = self.config.clone();
+                return Command::perform(
+                    request_download_link(config, backup_id),
+                    |result| match result {
+                        Ok(url) => Message::OpenUrl(url),
+                        Err(e) => Message::StatusChanged(format!("Error: {}", e)),
+                    },
+                );
+            }
+            Message::OpenUrl(url) => {
+                if webbrowser::open(&url).is_err() {
+                    self.status = "Failed to open web browser".to_string();
+                }
+            }
         }
         Command::none()
     }
@@ -234,6 +280,7 @@ impl Application for App {
                 text(&self.status),
                 button("Setup").on_press(Message::Setup),
                 button("View Logs").on_press(Message::ViewLogs),
+                button("View Backups").on_press(Message::ViewBackups),
                 button("Quit").on_press(Message::Quit),
             ]
             .padding(20)
@@ -286,6 +333,72 @@ impl Application for App {
                 .padding(20)
                 .spacing(10)
                 .into()
+            }
+            ViewState::Backups => {
+                let header = row![]
+                    .push(text("ID").width(Length::FillPortion(1)))
+                    .push(text("DB Name").width(Length::FillPortion(4)))
+                    .push(text("Status").width(Length::FillPortion(2)))
+                    .push(text("Completed At").width(Length::FillPortion(4)))
+                    .push(
+                        container(text("Download"))
+                            .width(Length::FillPortion(2))
+                            .center_x(),
+                    )
+                    .spacing(10)
+                    .align_items(Alignment::Center);
+
+                let backup_rows = self
+                    .backups
+                    .iter()
+                    .enumerate()
+                    .fold(column![].spacing(5), |col, (i, entry)| {
+                        let style = if i % 2 == 0 {
+                            iced::theme::Container::Custom(Box::new(styling::ContainerTheme::Even))
+                        } else {
+                            iced::theme::Container::Custom(Box::new(styling::ContainerTheme::Odd))
+                        };
+
+                        col.push(
+                            container(
+                                row![]
+                                    .push(text(entry.id.to_string()).width(Length::FillPortion(1)))
+                                    .push(text(&entry.db_name).width(Length::FillPortion(4)))
+                                    .push(text(&entry.status).width(Length::FillPortion(2)))
+                                    .push(
+                                        text(&entry.backup_completed_at)
+                                            .width(Length::FillPortion(4)),
+                                    )
+                                    .push(
+                                        container(
+                                            button("Download")
+                                                .on_press(Message::DownloadBackup(entry.id)),
+                                        )
+                                        .width(Length::FillPortion(2))
+                                        .center_x(),
+                                    )
+                                    .spacing(10)
+                                    .align_items(Alignment::Center),
+                            )
+                            .style(style),
+                        )
+                    });
+
+                let title_row = row![
+                    text("Backups").size(24),
+                    row![]
+                        .width(Length::Fill)
+                        .align_items(Alignment::End)
+                        .spacing(10)
+                        .push(button("Back").on_press(Message::BackToMain))
+                ]
+                .align_items(Alignment::Center)
+                .spacing(20);
+
+                column![title_row, header, scrollable(backup_rows)]
+                    .padding(20)
+                    .spacing(10)
+                    .into()
             }
             ViewState::Settings => {
                 let mut content = column![
@@ -456,4 +569,58 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
         .init();
 
     guard
+}
+
+async fn fetch_backups(config: config::Config) -> Result<Vec<BackupEntry>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/backups", config.api.url.trim_end_matches('/'));
+    let response = client
+        .get(&url)
+        .bearer_auth(&config.api.auth_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        let backups = response
+            .json::<Vec<BackupEntry>>()
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(backups)
+    } else {
+        Err(format!("Failed to fetch backups: {}", response.status()))
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct DownloadUrl {
+    url: String,
+}
+
+async fn request_download_link(config: config::Config, backup_id: u64) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "{}/api/backups/{}/download",
+        config.api.url.trim_end_matches('/'),
+        backup_id
+    );
+    let response = client
+        .get(&url)
+        .bearer_auth(&config.api.auth_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        let download_url = response
+            .json::<DownloadUrl>()
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(download_url.url)
+    } else {
+        Err(format!(
+            "Failed to request download link: {}",
+            response.status()
+        ))
+    }
 }

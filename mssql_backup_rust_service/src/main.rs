@@ -1,6 +1,6 @@
 // #![windows_subsystem = "windows"]
 
-use iced::{Application, Command, Element, Settings, Theme};
+use iced::{Application, Command, Element, Length, Settings, Theme};
 use iced::widget::{button, column, row, text, text_input};
 
 mod config;
@@ -41,6 +41,7 @@ struct App {
     status: String,
     view_state: ViewState,
     config: config::Config,
+    original_config: Option<config::Config>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +52,7 @@ enum Message {
     StatusChanged(String),
     SaveConfig,
     Config(ConfigMessage),
+    Cancel,
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +82,7 @@ impl Application for App {
                     let app = Self {
                         status: "Backup service running...".to_string(),
                         view_state: ViewState::Main,
+                        original_config: Some(config.clone()),
                         config,
                     };
                     (app, Command::perform(run_app_wrapper(), Message::StatusChanged))
@@ -89,6 +92,7 @@ impl Application for App {
                         status: format!("Error loading config: {}", e),
                         view_state: ViewState::Settings,
                         config: config::Config::default(),
+                        original_config: None,
                     };
                     (app, Command::none())
                 }
@@ -98,6 +102,7 @@ impl Application for App {
                 status: "Config file not found. Please set up the application.".to_string(),
                 view_state: ViewState::Settings,
                 config: config::Config::default(),
+                original_config: None,
             };
             (app, Command::none())
         }
@@ -110,6 +115,7 @@ impl Application for App {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Setup => {
+                self.original_config = Some(self.config.clone());
                 self.view_state = ViewState::Settings;
             }
             Message::ViewLogs => {
@@ -126,6 +132,7 @@ impl Application for App {
                     Ok(_) => {
                         self.status = "Config saved successfully.".to_string();
                         self.view_state = ViewState::Main;
+                        self.original_config = Some(self.config.clone());
                         return Command::perform(run_app_wrapper(), Message::StatusChanged);
                     }
                     Err(e) => {
@@ -140,12 +147,21 @@ impl Application for App {
                     ConfigMessage::UserChanged(s) => self.config.mssql.user = Some(s),
                     ConfigMessage::PassChanged(s) => self.config.mssql.pass = Some(s),
                     ConfigMessage::DatabaseChanged(s) => self.config.mssql.database = s,
-                    ConfigMessage::InstanceNameChanged(s) => self.config.mssql.instance_name = Some(s),
+                    ConfigMessage::InstanceNameChanged(s) => {
+                        self.config.mssql.instance_name = Some(s)
+                    }
                     ConfigMessage::ApiUrlChanged(s) => self.config.api.url = s,
                     ConfigMessage::ServerTokenChanged(s) => self.config.api.server_token = s,
                     ConfigMessage::AuthTokenChanged(s) => self.config.api.auth_token = s,
                     ConfigMessage::TempPathChanged(s) => self.config.backup.temp_path = s,
                 }
+            }
+            Message::Cancel => {
+                if let Some(original_config) = self.original_config.take() {
+                    self.config = original_config;
+                }
+                self.view_state = ViewState::Main;
+                self.status = "Editing cancelled.".to_string();
             }
         }
         Command::none()
@@ -165,16 +181,16 @@ impl Application for App {
                 .into()
             }
             ViewState::Settings => {
-                column![
-                    text("Settings"),
+                let mut content = column![
+                    text("Settings").size(24),
                     row![
-                        text("Host:"),
+                        text("Host:").width(Length::Fixed(120.0)),
                         text_input("", self.config.mssql.host.as_deref().unwrap_or(""))
                             .on_input(|s| Message::Config(ConfigMessage::HostChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Port:"),
+                        text("Port:").width(Length::Fixed(120.0)),
                         text_input(
                             "",
                             &self.config.mssql.port.map(|p| p.to_string()).unwrap_or_default()
@@ -183,25 +199,25 @@ impl Application for App {
                     ]
                     .spacing(5),
                     row![
-                        text("User:"),
+                        text("User:").width(Length::Fixed(120.0)),
                         text_input("", self.config.mssql.user.as_deref().unwrap_or(""))
                             .on_input(|s| Message::Config(ConfigMessage::UserChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Password:"),
+                        text("Password:").width(Length::Fixed(120.0)),
                         text_input("", self.config.mssql.pass.as_deref().unwrap_or(""))
                             .on_input(|s| Message::Config(ConfigMessage::PassChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Database:"),
+                        text("Database:").width(Length::Fixed(120.0)),
                         text_input("", &self.config.mssql.database)
                             .on_input(|s| Message::Config(ConfigMessage::DatabaseChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Instance Name:"),
+                        text("Instance Name:").width(Length::Fixed(120.0)),
                         text_input(
                             "",
                             self.config.mssql.instance_name.as_deref().unwrap_or("")
@@ -210,34 +226,41 @@ impl Application for App {
                     ]
                     .spacing(5),
                     row![
-                        text("API URL:"),
+                        text("API URL:").width(Length::Fixed(120.0)),
                         text_input("", &self.config.api.url)
                             .on_input(|s| Message::Config(ConfigMessage::ApiUrlChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Server Token:"),
+                        text("Server Token:").width(Length::Fixed(120.0)),
                         text_input("", &self.config.api.server_token)
                             .on_input(|s| Message::Config(ConfigMessage::ServerTokenChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Auth Token:"),
+                        text("Auth Token:").width(Length::Fixed(120.0)),
                         text_input("", &self.config.api.auth_token)
                             .on_input(|s| Message::Config(ConfigMessage::AuthTokenChanged(s)))
                     ]
                     .spacing(5),
                     row![
-                        text("Temp Path:"),
+                        text("Temp Path:").width(Length::Fixed(120.0)),
                         text_input("", &self.config.backup.temp_path)
                             .on_input(|s| Message::Config(ConfigMessage::TempPathChanged(s)))
                     ]
                     .spacing(5),
-                    button("Save").on_press(Message::SaveConfig),
                 ]
-                .padding(20)
-                .spacing(10)
-                .into()
+                .spacing(10);
+
+                let mut buttons = row![].spacing(10);
+                if self.original_config.is_some() {
+                    buttons = buttons.push(button("Cancel").on_press(Message::Cancel));
+                }
+                buttons = buttons.push(button("Save").on_press(Message::SaveConfig));
+
+                content = content.push(buttons);
+
+                content.padding(20).spacing(10).into()
             }
         }
     }

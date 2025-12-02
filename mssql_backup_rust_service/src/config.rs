@@ -2,14 +2,14 @@ use serde::Deserialize;
 use std::fs;
 use anyhow::Result;
 
-#[derive(Deserialize, serde::Serialize, Debug, Default)]
+#[derive(Deserialize, serde::Serialize, Debug, Default, Clone)]
 pub struct Config {
     pub mssql: MssqlConfig,
     pub api: ApiConfig,
     pub backup: BackupConfig,
 }
 
-#[derive(Deserialize, serde::Serialize, Debug, Default)]
+#[derive(Deserialize, serde::Serialize, Debug, Default, Clone)]
 pub struct MssqlConfig {
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -19,14 +19,14 @@ pub struct MssqlConfig {
     pub instance_name: Option<String>,
 }
 
-#[derive(Deserialize, serde::Serialize, Debug, Default)]
+#[derive(Deserialize, serde::Serialize, Debug, Default, Clone)]
 pub struct ApiConfig {
     pub url: String,
     pub server_token: String,
     pub auth_token: String,
 }
 
-#[derive(Deserialize, serde::Serialize, Debug, Default)]
+#[derive(Deserialize, serde::Serialize, Debug, Default, Clone)]
 pub struct BackupConfig {
     pub temp_path: String,
 }

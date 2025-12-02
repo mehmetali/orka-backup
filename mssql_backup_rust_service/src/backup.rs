@@ -90,7 +90,7 @@ async fn create_mssql_client(
     } else {
         t_config.authentication(AuthMethod::Integrated);
     }
-    t_config.encryption(EncryptionLevel::Required);
+    t_config.encryption(EncryptionLevel::Off); // Changed from Required to Off for local dev
     t_config.trust_cert(); // Use for development; configure properly for production
 
     let host = match &config.mssql.host {

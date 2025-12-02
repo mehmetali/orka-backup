@@ -247,7 +247,7 @@ impl Application for App {
             Message::ViewBackups => {
                 self.view_state = ViewState::Backups;
                 let config = self.config.clone();
-                return Command::perform(fetch_backups(&config), Message::BackupsLoaded);
+                return Command::perform(fetch_backups(config), Message::BackupsLoaded);
             }
             Message::BackupsLoaded(Ok(backups)) => {
                 self.backups = backups;
@@ -258,7 +258,7 @@ impl Application for App {
             Message::DownloadBackup(backup_id) => {
                 let config = self.config.clone();
                 return Command::perform(
-                    request_download_link(&config, backup_id),
+                    request_download_link(config, backup_id),
                     |result| match result {
                         Ok(url) => Message::OpenUrl(url),
                         Err(e) => Message::StatusChanged(format!("Error: {}", e)),
@@ -561,7 +561,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     guard
 }
 
-async fn fetch_backups(config: &config::Config) -> Result<Vec<BackupEntry>, String> {
+async fn fetch_backups(config: config::Config) -> Result<Vec<BackupEntry>, String> {
     let client = reqwest::Client::new();
     let url = format!("{}/api/backups", config.api.url);
     let response = client
@@ -587,7 +587,7 @@ struct DownloadUrl {
     url: String,
 }
 
-async fn request_download_link(config: &config::Config, backup_id: u64) -> Result<String, String> {
+async fn request_download_link(config: config::Config, backup_id: u64) -> Result<String, String> {
     let client = reqwest::Client::new();
     let url = format!("{}/api/backups/{}/download", config.api.url, backup_id);
     let response = client

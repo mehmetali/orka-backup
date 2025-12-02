@@ -1,6 +1,8 @@
 // #![windows_subsystem = "windows"]
 
-pub mod app;
+use iced::{Application, Command, Element, Settings, Theme};
+use iced::widget::{button, column, text};
+
 mod config;
 mod backup;
 mod upload;
@@ -26,9 +28,88 @@ fn early_init() {
     tracing::info!("Early init logging complete.");
 }
 
-fn main() {
-    app::app_main();
+pub fn main() -> iced::Result {
+    App::run(Settings::default())
 }
+
+struct App {
+    status: String,
+}
+
+#[derive(Debug, Clone)]
+enum Message {
+    Setup,
+    ViewLogs,
+    Quit,
+    StatusChanged(String),
+}
+
+impl Application for App {
+    type Executor = iced::executor::Default;
+    type Message = Message;
+    type Theme = Theme;
+    type Flags = ();
+
+    fn new(_flags: ()) -> (Self, Command<Message>) {
+        let (status, command) = if Path::new("config.toml").exists() {
+            (
+                "Backup service running...".to_string(),
+                Command::perform(run_app_wrapper(), Message::StatusChanged),
+            )
+        } else {
+            (
+                "Config file not found. Please set up the application.".to_string(),
+                Command::none(),
+            )
+        };
+
+        (Self { status }, command)
+    }
+
+    fn title(&self) -> String {
+        String::from("MSSQL Backup Service")
+    }
+
+    fn update(&mut self, message: Message) -> Command<Message> {
+        match message {
+            Message::Setup => {
+                println!("Setup button clicked!");
+            }
+            Message::ViewLogs => {
+                println!("View Logs button clicked!");
+            }
+            Message::Quit => {
+                return Command::perform(async {}, |_| std::process::exit(0));
+            }
+            Message::StatusChanged(new_status) => {
+                self.status = new_status;
+            }
+        }
+        Command::none()
+    }
+
+    fn view(&self) -> Element<'_, Message> {
+        column![
+            text(&self.status),
+            button("Setup").on_press(Message::Setup),
+            button("View Logs").on_press(Message::ViewLogs),
+            button("Quit").on_press(Message::Quit),
+        ]
+        .padding(20)
+        .spacing(10)
+        .into()
+    }
+}
+
+async fn run_app_wrapper() -> String {
+    if let Err(e) = run_app().await {
+        let msg = format!("Backup thread failed: {}", e);
+        tracing::error!("{}", msg);
+        return msg;
+    }
+    "Backup service finished.".to_string()
+}
+
 
 fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let log_path = logging::get_log_filepath();

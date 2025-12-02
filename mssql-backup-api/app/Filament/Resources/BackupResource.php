@@ -78,8 +78,19 @@ class BackupResource extends Resource
                 Tables\Actions\Action::make('download')
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->url(fn (Backup $record) => route('backups.download', $record))
-                    ->openUrlInNewTab(),
+                    ->action(function (Backup $record) {
+                        $token = \Illuminate\Support\Str::random(40);
+                        $record->download_token = $token;
+                        $record->save();
+
+                        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                            'backups.stream',
+                            now()->addMinutes(15),
+                            ['backup' => $record->id, 'token' => $token]
+                        );
+
+                        return redirect($url);
+                    }),
             ])
             ->bulkActions([
                 //

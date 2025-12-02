@@ -1,13 +1,14 @@
 // #![windows_subsystem = "windows"]
 
 use iced::{Application, Command, Element, Length, Settings, Theme};
-use iced::widget::{button, column, row, scrollable, text, text_input};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
 
 mod config;
 mod backup;
 mod upload;
 mod cleanup;
 mod logging;
+mod styling;
 
 use anyhow::Result;
 use std::path::Path;
@@ -246,16 +247,29 @@ impl Application for App {
                     .push(text("Message").width(Length::Fill))
                     .spacing(10);
 
-                let log_rows = self.logs.iter().fold(column![].spacing(5), |col, entry| {
-                    col.push(
-                        row![]
-                            .push(text(&entry.timestamp).width(Length::Fixed(250.0)))
-                            .push(text(&entry.level).width(Length::Fixed(80.0)))
-                            .push(text(&entry.module).width(Length::Fixed(200.0)))
-                            .push(text(&entry.message).width(Length::Fill))
-                            .spacing(10),
-                    )
-                });
+                let log_rows = self
+                    .logs
+                    .iter()
+                    .enumerate()
+                    .fold(column![].spacing(5), |col, (i, entry)| {
+                        let style = if i % 2 == 0 {
+                            iced::theme::Container::Custom(Box::new(styling::ContainerTheme::Even))
+                        } else {
+                            iced::theme::Container::Custom(Box::new(styling::ContainerTheme::Odd))
+                        };
+
+                        col.push(
+                            container(
+                                row![]
+                                    .push(text(&entry.timestamp).width(Length::Fixed(250.0)))
+                                    .push(text(&entry.level).width(Length::Fixed(80.0)))
+                                    .push(text(&entry.module).width(Length::Fixed(200.0)))
+                                    .push(text(&entry.message).width(Length::Fill))
+                                    .spacing(10),
+                            )
+                            .style(style),
+                        )
+                    });
 
                 column![
                     text("Logs").size(24),

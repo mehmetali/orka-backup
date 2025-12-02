@@ -120,6 +120,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
 
     let console_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
         .with_writer(std::io::stdout);
 
     let file_layer = tracing_subscriber::fmt::layer()

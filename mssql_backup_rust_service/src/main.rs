@@ -75,8 +75,131 @@ fn early_init() {
     tracing::info!("Early init logging complete.");
 }
 
-pub fn main() -> iced::Result {
-    App::run(Settings::default())
+use single_instance::SingleInstance;
+use std::env;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::thread;
+use tray_icon::{
+    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    TrayIconBuilder,
+};
+use std::sync::atomic::{AtomicBool, Ordering};
+use tray_icon::Icon;
+
+static GUI_OPEN: AtomicBool = AtomicBool::new(false);
+const APP_ID: &str = "com.company.mssql-backup-rust-service";
+const IPC_PORT: u16 = 16667;
+
+pub fn main() -> Result<()> {
+    Lazy::force(&LOGGING_GUARD);
+    tracing::info!("Application starting...");
+
+    let args: Vec<String> = env::args().collect();
+    let is_service = args.iter().any(|arg| arg == "--service");
+    let instance = SingleInstance::new(APP_ID)?;
+
+    if instance.is_single() {
+        if is_service {
+            tracing::info!("Starting in service mode.");
+            run_service()?;
+        } else {
+            tracing::warn!("Started without '--service' but no other instance is running. Starting as service.");
+            run_service()?;
+        }
+    } else {
+        tracing::info!("Another instance is already running. Sending 'show' command.");
+        if let Ok(mut stream) = TcpStream::connect(format!("127.0.0.1:{}", IPC_PORT)) {
+            stream.write_all(b"show")?;
+        }
+        tracing::info!("'show' command sent. Exiting client.");
+    }
+
+    Ok(())
+}
+
+fn run_service() -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.spawn(async {
+        if let Err(e) = run_app().await {
+            tracing::error!("Backup service loop failed: {:?}", e);
+        }
+    });
+
+    let menu_channel = MenuEvent::receiver();
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", IPC_PORT))?;
+    listener.set_nonblocking(true)?;
+
+    let icon_bytes = include_bytes!("../resources/tray-example.ico");
+    let icon = load_icon(icon_bytes);
+
+    let mut tray_builder = TrayIconBuilder::new()
+        .with_tooltip("MSSQL Backup Service");
+
+    if let Some(icon) = icon {
+        tray_builder = tray_builder.with_icon(icon);
+    } else {
+        tracing::warn!("Could not load tray icon.");
+    }
+
+    let tray_menu = Menu::new();
+    let show_item = MenuItem::new("Show", true, None);
+    let quit_item = MenuItem::new("Quit", true, None);
+    tray_menu.append_items(&[
+        &show_item,
+        &PredefinedMenuItem::separator(),
+        &quit_item,
+    ])?;
+
+    let _tray_icon = tray_builder
+        .with_menu(Box::new(tray_menu))
+        .build()?;
+
+    loop {
+        if let Ok(event) = menu_channel.try_recv() {
+            if event.id == show_item.id() {
+                show_gui();
+            } else if event.id == quit_item.id() {
+                rt.shutdown_background();
+                break;
+            }
+        }
+
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buffer = [0; 4];
+            if stream.read_exact(&mut buffer).is_ok() && &buffer == b"show" {
+                show_gui();
+            }
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    Ok(())
+}
+
+fn show_gui() {
+    if !GUI_OPEN.swap(true, Ordering::Relaxed) {
+        tracing::info!("Showing GUI...");
+        thread::spawn(|| {
+            if let Err(e) = App::run(Settings::default()) {
+                tracing::error!("Failed to run GUI: {}", e);
+            }
+            GUI_OPEN.store(false, Ordering::Relaxed);
+            tracing::info!("GUI thread finished.");
+        });
+    } else {
+        tracing::info!("GUI is already open.");
+    }
+}
+
+fn load_icon(bytes: &[u8]) -> Option<Icon> {
+    image::load_from_memory(bytes).ok().and_then(|image| {
+        let image = image.into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        Icon::from_rgba(rgba, width, height).ok()
+    })
 }
 
 enum ViewState {
